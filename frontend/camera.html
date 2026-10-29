@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Live Try-On — MirrorAI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Outfit', 'Segoe UI', sans-serif;
+      color: #fff;
+      touch-action: manipulation;
+    }
+
+    /* ── Camera / Canvas Layer ── */
+    #video {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      transform: scaleX(-1); /* mirror mode */
+    }
+
+    #overlay-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 2;
+      pointer-events: none;
+      /* NO CSS mirror — we flip x manually in drawing code */
+    }
+
+    /* ── Back Button ── */
+    #back-btn {
+      position: fixed;
+      top: 20px; left: 20px;
+      z-index: 100;
+      width: 44px; height: 44px;
+      background: rgba(0,0,0,0.55);
+      border: 1.5px solid rgba(255,255,255,0.25);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: background 0.2s;
+    }
+    #back-btn:hover { background: rgba(0,0,0,0.8); }
+    #back-btn svg { width: 20px; height: 20px; }
+
+    /* ── Mode Label ── */
+    #mode-label {
+      position: fixed;
+      top: 22px;
+      left: 50%; transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(168,85,247,0.4);
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      backdrop-filter: blur(12px);
+      color: #d8b4fe;
+    }
+
+    /* ── Selected Product Label ── */
+    #selected-label {
+      position: fixed;
+      top: 68px;
+      left: 50%; transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(168,85,247,0.25);
+      border: 1px solid rgba(168,85,247,0.5);
+      border-radius: 999px;
+      padding: 5px 16px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      backdrop-filter: blur(8px);
+      display: none;
+      white-space: nowrap;
+    }
+
+    /* ── Bottom Gradient Overlay ── */
+    #bottom-overlay {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 220px;
+      background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(10,5,25,0.7) 55%, transparent 100%);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* ── Product Strip ── */
+    #product-strip-wrap {
+      position: fixed;
+      bottom: 100px; left: 0; right: 0;
+      z-index: 20;
+      padding: 12px 0;
+    }
+
+    #product-strip {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      padding: 4px 24px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    #product-strip::-webkit-scrollbar { display: none; }
+
+    .prod-circle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .prod-circle:active { transform: scale(0.92); }
+
+    .prod-circle-img {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 2.5px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      backdrop-filter: blur(6px);
+    }
+
+    .prod-circle.selected .prod-circle-img {
+      border-color: #fbbf24;
+      box-shadow: 0 0 0 3px rgba(251,191,36,0.4), 0 0 18px rgba(251,191,36,0.3);
+    }
+
+    .prod-circle-name {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-align: center;
+      max-width: 76px;
+      line-height: 1.2;
+      color: rgba(255,255,255,0.85);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+
+    /* ── Capture Button ── */
+    #capture-btn {
+      position: fixed;
+      bottom: 24px;
+      left: 50%; transform: translateX(-50%);
+      z-index: 30;
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid rgba(255,255,255,0.4);
+      cursor: pointer;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.25), 0 4px 20px rgba(0,0,0,0.5);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    #capture-btn:active {
+      transform: translateX(-50%) scale(0.9);
+      box-shadow: 0 0 0 6px rgba(255,255,255,0.3);
+    }
+    #capture-btn::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      background: #fff;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.08);
+    }
+
+    /* ── Flash on capture ── */
+    #flash {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      z-index: 200;
+      pointer-events: none;
+      transition: opacity 0.08s ease;
+    }
+    #flash.active { opacity: 0.85; }
+
+    /* ── Error Screen ── */
+    #error-screen {
+      position: fixed;
+      inset: 0;
+      background: #0a0515;
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      text-align: center;
+      padding: 40px;
+    }
+    #error-screen.show { display: flex; }
+    #error-screen h2 { font-size: 1.4rem; color: #f0e0ff; }
+    #error-screen p { color: rgba(255,255,255,0.6); font-size: 0.9rem; max-width: 320px; line-height: 1.6; }
+    .err-icon { font-size: 56px; }
+    .err-back-btn {
+      margin-top: 8px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg,#a855f7,#6366f1);
+      border: none; border-radius: 999px;
+      color: #fff; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── Loading overlay ── */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      background: #0a0515;
+      z-index: 400;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    #loading-screen h3 { color: #d8b4fe; font-size: 1.1rem; }
+    #loading-screen p { color: rgba(255,255,255,0.5); font-size: 0.82rem; }
+    .spin {
+      width: 44px; height: 44px;
+      border: 3px solid rgba(168,85,247,0.2);
+      border-top-color: #a855f7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Pose Indicator Dots ── */
+    #pose-dots {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .pose-dot {
+      position: absolute;
+      width: 6px; height: 6px;
+      background: rgba(168,85,247,0.85);
+      border-radius: 50%;
+      box-shadow: 0 0 6px #a855f7;
+      transform: translate(-50%,-50%);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Flash effect -->
+<div id="flash"></div>
+
+<!-- Loading screen -->
+<div id="loading-screen">
+  <div class="spin"></div>
+  <h3>Initializing Camera...</h3>
+  <p>Allow camera access when prompted</p>
+</div>
+
+<!-- Error screen -->
+<div id="error-screen">
+  <div class="err-icon">📷</div>
+  <h2>Camera Not Available</h2>
+  <p id="error-msg">Camera access was denied or is not supported. Please allow camera access and reload.</p>
+  <button class="err-back-btn" onclick="window.location.href='tryon.html'">← Back to Photo Try-On</button>
+</div>
+
+<!-- Camera video element -->
+<video id="video" autoplay playsinline muted></video>
+
+<!-- Canvas overlay for garment drawing -->
+<canvas id="overlay-canvas"></canvas>
+
+<!-- Pose landmark dots (debug, hidden in prod) -->
+<div id="pose-dots"></div>
+
+<!-- Back button -->
+<button id="back-btn" onclick="window.location.href='tryon.html'" title="Back to Try-On">
+  <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 16L6 10l6-6"/>
+  </svg>
+</button>
+
+<!-- Mode label -->
+<div id="mode-label">📷 Live AR Try-On</div>
+
+<!-- Selected product label -->
+<div id="selected-label"></div>
+
+<!-- Bottom gradient -->
+<div id="bottom-overlay"></div>
+
+<!-- Product strip -->
+<div id="product-strip-wrap">
+  <div id="product-strip"></div>
+</div>
+
+<!-- Capture button -->
+<button id="capture-btn" title="Capture photo"></button>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script>
+// ══════════════════════════════════════════════════
+//  PRODUCTS
+// ══════════════════════════════════════════════════
+const PRODUCTS = [
+  { id: 'c1', name: 'Classic White Tee',     category: 'clothing',    emoji: '👕' },
+  { id: 'c2', name: 'Denim Jacket',          category: 'clothing',    emoji: '🧥' },
+  { id: 'c3', name: 'Formal Blazer',         category: 'clothing',    emoji: '🥋' },
+  { id: 'c4', name: 'Hoodie Sweatshirt',     category: 'clothing',    emoji: '🫶' },
+  { id: 'c5', name: 'Summer Floral Shirt',   category: 'clothing',    emoji: '🌺' },
+  { id: 'e1', name: 'Classic Aviators',      category: 'eyewear',     emoji: '🕶️' },
+  { id: 'e2', name: 'Round Tortoise Frames', category: 'eyewear',     emoji: '👓' },
+  { id: 'e3', name: 'Wayfarer Sunglasses',   category: 'eyewear',     emoji: '😎' },
+  { id: 'a1', name: 'Leather Baseball Cap',  category: 'accessories', emoji: '🧢' },
+  { id: 'a2', name: 'Chunky Chain Necklace', category: 'accessories', emoji: '📿' },
+  { id: 'a3', name: 'Watch — Minimalist',    category: 'accessories', emoji: '⌚' },
+];
+
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+let selectedProduct  = null;
+let latestLandmarks  = null;
+let videoStream      = null;
+let poseInstance     = null;
+let cameraUtil       = null;
+
+const video   = document.getElementById('video');
+const canvas  = document.getElementById('overlay-canvas');
+const ctx     = canvas.getContext('2d');
+
+// ══════════════════════════════════════════════════
+//  PRODUCT STRIP
+// ══════════════════════════════════════════════════
+function buildProductStrip() {
+  const strip = document.getElementById('product-strip');
+  strip.innerHTML = '';
+  PRODUCTS.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'prod-circle';
+    div.dataset.id = p.id;
+    div.innerHTML = `
+      <div class="prod-circle-img">${p.emoji}</div>
+      <div class="prod-circle-name">${p.name}</div>
+    `;
+    div.addEventListener('click', () => selectProduct(p.id));
+    strip.appendChild(div);
+  });
+}
+
+function selectProduct(id) {
+  if (selectedProduct?.id === id) {
+    selectedProduct = null;
+    document.querySelectorAll('.prod-circle').forEach(el => el.classList.remove('selected'));
+    document.getElementById('selected-label').style.display = 'none';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+  selectedProduct = PRODUCTS.find(p => p.id === id);
+  document.querySelectorAll('.prod-circle').forEach(el =>
+    el.classList.toggle('selected', el.dataset.id === id));
+  const label = document.getElementById('selected-label');
+  label.textContent = `${selectedProduct.emoji}  ${selectedProduct.name}`;
+  label.style.display = 'block';
+}
+
+// ══════════════════════════════════════════════════
+//  CANVAS RESIZE
+// ══════════════════════════════════════════════════
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ══════════════════════════════════════════════════
+//  LANDMARK HELPER
+//  KEY FIX: we DON'T CSS-mirror the canvas.
+//  Instead we flip x here: x = W - rawX*W
+//  so garments align with the CSS-mirrored video.
+// ══════════════════════════════════════════════════
+function lm(landmarks, idx, W, H, minVis = 0.30) {
+  const p = landmarks[idx];
+  if (!p || p.visibility < minVis) return null;
+  return { x: W - p.x * W, y: p.y * H, v: p.visibility };
+}
+
+// ══════════════════════════════════════════════════
+//  GARMENT DRAWING
+// ══════════════════════════════════════════════════
+function drawGarmentOnCanvas(landmarks, W, H, product) {
+  if (!product || !landmarks) return;
+  const cat = product.category;
+  if      (cat === 'clothing')    drawClothing(landmarks, W, H, product);
+  else if (cat === 'eyewear')     drawEyewear(landmarks, W, H, product);
+  else if (cat === 'accessories') drawAccessory(landmarks, W, H, product);
+}
+
+// Pre-load product PNG images
+const productImages = {};
+PRODUCTS.forEach(p => {
+  const img = new Image();
+  img.src = `assets/products/${p.id}.png`;
+  productImages[p.id] = img;
+});
+
+// ── CLOTHING ─────────────────────────────────────
+function drawClothing(landmarks, W, H, product) {
+  const ls = lm(landmarks, 11, W, H, 0.15);  // left shoulder
+  const rs = lm(landmarks, 12, W, H, 0.15);  // right shoulder
+  const nose = lm(landmarks, 0, W, H, 0.10); // nose
+  const lh = lm(landmarks, 23, W, H, 0.10);  // left hip
+  const rh = lm(landmarks, 24, W, H, 0.10);  // right hip
+
+  if (!ls || !rs) return;
+
+  const sw = Math.hypot(rs.x - ls.x, rs.y - ls.y);
+  if (sw < 25 || sw > W * 0.98) return;
+
+  const midX = (ls.x + rs.x) / 2;
+  const shoulderY = (ls.y + rs.y) / 2;
+  const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
+
+  // Clothing garment dimensions:
+  // sw is skeletal distance between shoulder joints.
+  // Real clothing covers both shoulders plus sleeves (~2.4x)
+  const garmentW = sw * 2.38;
+  const aspect = (product.id === 'c4') ? 1.0 : (product.id === 'c2') ? 1.15 : 1.12;
+  const garmentH = garmentW * aspect;
+
+  // Exact Collar Alignment:
+  // In our transparent flatlay garment PNGs, the top collar cutout is at ~10% from the top.
+  // The collar should align right across the clavicle / base of neck (slightly above shoulder joints).
+  const collarY = nose ? Math.min(shoulderY - sw * 0.04, nose.y + sw * 0.45) : shoulderY - sw * 0.04;
+  const garmentTopY = collarY - garmentH * 0.10;
+  const garmentCenterY = garmentTopY + garmentH / 2;
+  const garmentCenterX = midX;
+
+  const pImg = productImages[product.id];
+
+  ctx.save();
+  ctx.translate(garmentCenterX, garmentCenterY);
+  ctx.rotate(angle);
+
+  if (pImg && pImg.complete && pImg.naturalWidth > 0) {
+    ctx.globalAlpha = 1.0;
+    ctx.drawImage(pImg, -garmentW / 2, -garmentH / 2, garmentW, garmentH);
+  }
+
+  ctx.restore();
+}
+
+// ── EYEWEAR ──────────────────────────────────────
+function drawEyewear(landmarks, W, H, product) {
+  const leyeRaw = landmarks[2]; // left eye
+  const reyeRaw = landmarks[5]; // right eye
+  const noseRaw = landmarks[0];
+
+  const flipX = x => W - x * W;
+  const flipPt = p => p ? { x: flipX(p.x), y: p.y * H, v: p.visibility } : null;
+
+  const leye = leyeRaw && leyeRaw.visibility > 0.10 ? flipPt(leyeRaw) : null;
+  const reye = reyeRaw && reyeRaw.visibility > 0.10 ? flipPt(reyeRaw) : null;
+  const nose = noseRaw && noseRaw.visibility > 0.10 ? flipPt(noseRaw) : null;
+
+  let eyeLX, eyeRX, eyeY;
+  if (leye && reye) {
+    eyeLX = leye.x;
+    eyeRX = reye.x;
+    eyeY  = (leye.y + reye.y) / 2;
+  } else if (nose) {
+    const ls = lm(landmarks, 11, W, H, 0.20);
+    const rs = lm(landmarks, 12, W, H, 0.20);
+    const faceW = (ls && rs) ? Math.abs(rs.x - ls.x) * 0.4 : W * 0.15;
+    eyeLX = nose.x - faceW * 0.5;
+    eyeRX = nose.x + faceW * 0.5;
+    eyeY  = nose.y - faceW * 0.3;
+  } else {
+    return;
+  }
+
+  if (eyeLX > eyeRX) { const t = eyeLX; eyeLX = eyeRX; eyeRX = t; }
+
+  const eyeSpan = Math.hypot(eyeRX - eyeLX, (reye && leye) ? reye.y - leye.y : 0);
+  const midX = (eyeLX + eyeRX) / 2;
+  const midY = eyeY;
+  const angle = (leye && reye) ? Math.atan2(reye.y - leye.y, reye.x - eyeLX) : 0;
+
+  const glassesW = eyeSpan * 2.05;
+  const glassesH = glassesW * 0.48;
+
+  const pImg = productImages[product.id];
+
+  ctx.save();
+  ctx.translate(midX, midY + glassesH * 0.05);
+  ctx.rotate(angle);
+
+  if (pImg && pImg.complete && pImg.naturalWidth > 0) {
+    ctx.globalAlpha = 0.98;
+    ctx.drawImage(pImg, -glassesW / 2, -glassesH / 2, glassesW, glassesH);
+  }
+
+  ctx.restore();
+}
+
+// ── ACCESSORIES ──────────────────────────────────
+function drawAccessory(landmarks, W, H, product) {
+  const pImg = productImages[product.id];
+  if (!pImg || !pImg.complete) return;
+
+  if (product.id === 'a1') { // Cap
+    const nose = lm(landmarks, 0, W, H, 0.10);
+    const ls   = lm(landmarks, 11, W, H, 0.20);
+    const rs   = lm(landmarks, 12, W, H, 0.20);
+    const lear = lm(landmarks, 7, W, H, 0.10);
+    const rear = lm(landmarks, 8, W, H, 0.10);
+
+    let headCX, headW, headY;
+    if (lear && rear) {
+      headCX = (lear.x + rear.x) / 2;
+      headW = Math.abs(rear.x - lear.x) * 1.45;
+      headY = Math.min(lear.y, rear.y);
+    } else if (nose && ls && rs) {
+      headCX = nose.x;
+      headW = Math.abs(rs.x - ls.x) * 0.55;
+      headY = nose.y - headW * 0.55;
+    } else if (nose) {
+      headCX = nose.x;
+      headW = W * 0.22;
+      headY = nose.y - headW * 0.55;
+    } else return;
+
+    const capW = headW * 1.4;
+    const capH = capW * 0.62;
+
+    ctx.save();
+    ctx.translate(headCX, headY - capH * 0.28);
+    ctx.globalAlpha = 0.98;
+    ctx.drawImage(pImg, -capW / 2, -capH / 2, capW, capH);
+    ctx.restore();
+
+  } else if (product.id === 'a2') { // Necklace
+    const ls = lm(landmarks, 11, W, H, 0.25);
+    const rs = lm(landmarks, 12, W, H, 0.25);
+    if (!ls || !rs) return;
+
+    const sw = Math.hypot(rs.x - ls.x, rs.y - ls.y);
+    const midX = (ls.x + rs.x) / 2;
+    const midY = (ls.y + rs.y) / 2;
+    const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
+
+    const neckW = sw * 0.85;
+    const neckH = neckW * 0.65;
+
+    ctx.save();
+    ctx.translate(midX, midY + neckH * 0.15);
+    ctx.rotate(angle);
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(pImg, -neckW / 2, -neckH / 2, neckW, neckH);
+    ctx.restore();
+
+  } else if (product.id === 'a3') { // Watch
+    const lw = lm(landmarks, 15, W, H, 0.15);
+    const rw = lm(landmarks, 16, W, H, 0.15);
+    const wrist = lw || rw;
+    if (!wrist) return;
+
+    const ls = lm(landmarks, 11, W, H, 0.20);
+    const rs = lm(landmarks, 12, W, H, 0.20);
+    const sw = (ls && rs) ? Math.hypot(rs.x - ls.x, rs.y - ls.y) : W * 0.25;
+
+    const watchSize = sw * 0.26;
+
+    ctx.save();
+    ctx.translate(wrist.x, wrist.y);
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(pImg, -watchSize / 2, -watchSize / 2, watchSize, watchSize);
+    ctx.restore();
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  RENDER LOOP
+// ══════════════════════════════════════════════════
+function renderLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (selectedProduct && latestLandmarks) {
+    drawGarmentOnCanvas(latestLandmarks, canvas.width, canvas.height, selectedProduct);
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  MEDIAPIPE POSE
+// ══════════════════════════════════════════════════
+function setupMediaPipe(stream) {
+  if (typeof Pose === 'undefined') {
+    console.warn('MediaPipe not available — running without pose');
+    runWithoutPose(); return;
+  }
+
+  poseInstance = new Pose({
+    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+  });
+  poseInstance.setOptions({
+    modelComplexity:       1,
+    smoothLandmarks:       true,
+    enableSegmentation:    false,
+    minDetectionConfidence: 0.50,
+    minTrackingConfidence:  0.50,
+  });
+  poseInstance.onResults(results => {
+    latestLandmarks = results.poseLandmarks || null;
+    renderLoop();
+  });
+
+  if (typeof Camera !== 'undefined') {
+    cameraUtil = new Camera(video, {
+      onFrame: async () => { await poseInstance.send({ image: video }); },
+      width: 1280, height: 720
+    });
+    cameraUtil.start()
+      .then(hideLoading)
+      .catch(() => runWithoutPose());
+  } else {
+    hideLoading();
+    const loop = async () => {
+      if (video.readyState >= 2) await poseInstance.send({ image: video });
+      requestAnimationFrame(loop);
+    };
+    loop();
+  }
+}
+
+function runWithoutPose() {
+  hideLoading();
+  const loop = () => { renderLoop(); requestAnimationFrame(loop); };
+  loop();
+}
+
+// ══════════════════════════════════════════════════
+//  CAMERA INIT
+// ══════════════════════════════════════════════════
+async function initCamera() {
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    video.srcObject = videoStream;
+    await new Promise((res, rej) => { video.onloadedmetadata = res; video.onerror = rej; });
+    await video.play();
+    setupMediaPipe(videoStream);
+  } catch (err) {
+    showError(err.name === 'NotAllowedError'
+      ? 'Camera access was denied. Allow camera access in your browser settings and reload.'
+      : 'Cannot access camera. Make sure no other app is using it, then reload.');
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  CAPTURE — composite video + garment overlay
+// ══════════════════════════════════════════════════
+function capturePhoto() {
+  const flash = document.getElementById('flash');
+  flash.classList.add('active');
+  setTimeout(() => flash.classList.remove('active'), 180);
+
+  const vW = video.videoWidth  || canvas.width;
+  const vH = video.videoHeight || canvas.height;
+
+  const cap = document.createElement('canvas');
+  cap.width = vW; cap.height = vH;
+  const cCtx = cap.getContext('2d');
+
+  // Draw video mirrored (selfie orientation)
+  cCtx.save();
+  cCtx.translate(vW, 0);
+  cCtx.scale(-1, 1);
+  cCtx.drawImage(video, 0, 0, vW, vH);
+  cCtx.restore();
+
+  // Draw garment at full video resolution
+  if (selectedProduct && latestLandmarks) {
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = vW; tmpCanvas.height = vH;
+    const tmpCtx = tmpCanvas.getContext('2d');
+    // We need a separate ctx-like object pointing to tmpCtx
+    // Temporarily swap global ctx reference
+    const origCtx = ctx;
+    // Draw to tmpCanvas
+    const savedCtx = ctx;
+    // Use a closure trick: re-call draw with tmpCtx
+    drawGarmentOnCanvasTo(tmpCtx, latestLandmarks, vW, vH, selectedProduct);
+    cCtx.drawImage(tmpCanvas, 0, 0, vW, vH);
+  }
+
+  // Watermark
+  const wSz = Math.max(14, vW * 0.018);
+  cCtx.font = `bold ${wSz}px Outfit, sans-serif`;
+  cCtx.textAlign = 'right';
+  cCtx.fillStyle = 'rgba(168,85,247,0.80)';
+  cCtx.globalAlpha = 0.75;
+  cCtx.fillText('MirrorAI — Live Try-On', vW - 16, vH - 16);
+
+  const link = document.createElement('a');
+  link.download = `mirrrorai_live_${Date.now()}.jpg`;
+  link.href = cap.toDataURL('image/jpeg', 0.92);
+  link.click();
+}
+
+// ── Draw to an arbitrary ctx (for capture) ───────
+function drawGarmentOnCanvasTo(targetCtx, landmarks, W, H, product) {
+  const origCtx = ctx;
+  // Temporarily point module-level ctx at targetCtx
+  Object.assign(ctx, targetCtx); // won't work directly — use a different pattern
+  // Simple approach: just use targetCtx inline
+  const _ctx = targetCtx;
+  const _lm = (idx, minVis = 0.30) => {
+    const p = landmarks[idx];
+    if (!p || p.visibility < minVis) return null;
+    return { x: W - p.x * W, y: p.y * H, v: p.visibility };
+  };
+  // For capture we skip re-implementing full draw — just call renderLoop on a temp canvas
+  // This is handled by drawing the overlay canvas scaled to capture size
+  const scaleX = W / canvas.width;
+  const scaleY = H / canvas.height;
+  _ctx.save();
+  _ctx.scale(scaleX, scaleY);
+  _ctx.drawImage(canvas, 0, 0);
+  _ctx.restore();
+}
+
+// ══════════════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════════════
+function hideLoading() {
+  document.getElementById('loading-screen').style.display = 'none';
+}
+function showError(msg) {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-screen').classList.add('show');
+}
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  buildProductStrip();
+  document.getElementById('capture-btn').addEventListener('click', capturePhoto);
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showError('Your browser does not support camera access. Use Chrome or Safari.');
+    return;
+  }
+  initCamera();
+});
+
+window.addEventListener('pagehide', () => {
+  if (cameraUtil)   cameraUtil.stop();
+  if (videoStream)  videoStream.getTracks().forEach(t => t.stop());
+  if (poseInstance) poseInstance.close();
+});
+</script>
+</body>
+</html>

@@ -393,6 +393,395 @@ function showResult(apiData, elapsed) {
   goToStep(4);
 }
 
+// ── Body estimation helpers ────────────────────────────
+function estimateBodyLandmarks(imgW, imgH) {
+  // Geometric estimation: face in upper-center, shoulders below, hips further down
+  // Portrait vs landscape handling
+  const isPortrait = imgH >= imgW;
+
+  // Face: roughly top 10–38% height, centered
+  const faceTopFrac  = isPortrait ? 0.06 : 0.10;
+  const faceHFrac    = isPortrait ? 0.26 : 0.32;
+  const faceWFrac    = isPortrait ? 0.32 : 0.30;
+
+  const faceTop  = imgH * faceTopFrac;
+  const faceH    = imgH * faceHFrac;
+  const faceW    = imgW * faceWFrac;
+  const faceCX   = imgW * 0.50;
+  const faceBot  = faceTop + faceH;
+
+  // Shoulders: just below face, wider
+  const shY  = faceBot + imgH * 0.025;
+  const lsX  = imgW * 0.50 - faceW * 0.92;
+  const rsX  = imgW * 0.50 + faceW * 0.92;
+
+  // Hips: proportionally below shoulders
+  const hipY = Math.min(imgH * 0.92, shY + imgH * (isPortrait ? 0.40 : 0.35));
+  const lhX  = imgW * 0.50 - faceW * 0.72;
+  const rhX  = imgW * 0.50 + faceW * 0.72;
+
+  // Wrists (at sleeve ends, roughly mid-torso height outward)
+  const torsoH = hipY - shY;
+  const lwX  = lsX  - faceW * 0.30;
+  const lwY  = shY  + torsoH * 0.55;
+  const rwX  = rsX  + faceW * 0.30;
+  const rwY  = shY  + torsoH * 0.55;
+
+  // Neck (just below face center)
+  const neckX = faceCX;
+  const neckY = faceBot - faceH * 0.08;
+
+  // Eyes (for eyewear)
+  const eyeY  = faceTop + faceH * 0.38;
+  const leX   = faceCX - faceW * 0.24;
+  const reX   = faceCX + faceW * 0.24;
+
+  // Head top (for cap)
+  const headTop = faceTop - faceH * 0.06;
+
+  return {
+    ls: { x: lsX, y: shY }, rs: { x: rsX, y: shY },
+    lh: { x: lhX, y: hipY }, rh: { x: rhX, y: hipY },
+    lw: { x: lwX, y: lwY }, rw: { x: rwX, y: rwY },
+    neckX, neckY,
+    leX, reX, eyeY,
+    faceTop, faceH, faceW, faceCX, headTop,
+    shoulderW: rsX - lsX,
+    torsoH: hipY - shY,
+    hipY
+  };
+}
+
+// ── Garment drawing helpers (Canvas 2D) ───────────────
+function demoDrawClothing(ctx, b, pid) {
+  const { ls, rs, lh, rh, lw, rw, neckX, neckY, shoulderW: sw, torsoH: th, hipY } = b;
+  const slW = sw * 0.22;
+
+  // colour scheme per product
+  const schemes = {
+    c1: { body: '#f7f7f5', shade: '#dedede', stroke: '#ccc', collar: '#ddd' },
+    c2: { body: '#2563eb', shade: '#1d4ed8', stroke: '#1e3a8a', collar: '#1d4ed8' },
+    c3: { body: '#1a1a28', shade: '#2a2a3a', stroke: '#111', collar: '#fff' },
+    c4: { body: '#6b7280', shade: '#4b5563', stroke: '#374151', collar: '#9ca3af' },
+    c5: { body: '#fed7aa', shade: '#fdba74', stroke: '#fb923c', collar: '#f97316' },
+  };
+  const sc = schemes[pid] || schemes.c1;
+
+  ctx.save();
+  ctx.globalAlpha = 0.87;
+
+  // Main body polygon
+  ctx.beginPath();
+  ctx.moveTo(neckX - sw * 0.14, neckY + 2);
+  ctx.quadraticCurveTo(neckX, neckY - sw * 0.05, neckX + sw * 0.14, neckY + 2);
+  ctx.lineTo(rs.x + sw * 0.06, ls.y);       // right shoulder point
+  ctx.lineTo(rw.x + slW * 0.55, rw.y);      // right wrist outer
+  ctx.lineTo(rw.x - slW * 0.35, rw.y + 8);  // right wrist inner
+  ctx.lineTo(rh.x + sw * 0.06, hipY);        // right hem
+  ctx.lineTo(lh.x - sw * 0.06, hipY);        // left hem
+  ctx.lineTo(lw.x + slW * 0.35, lw.y + 8);  // left wrist inner
+  ctx.lineTo(lw.x - slW * 0.55, lw.y);      // left wrist outer
+  ctx.lineTo(ls.x - sw * 0.06, ls.y);        // left shoulder point
+  ctx.closePath();
+  ctx.fillStyle = sc.body;
+  ctx.fill();
+  ctx.strokeStyle = sc.stroke;
+  ctx.lineWidth = Math.max(1, sw * 0.008);
+  ctx.stroke();
+
+  // Side shading strips for volume
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = sc.shade;
+  ctx.fillRect(ls.x - sw * 0.06, ls.y, sw * 0.15, th);
+  ctx.fillRect(rs.x - sw * 0.09, rs.y, sw * 0.15, th);
+  ctx.globalAlpha = 0.87;
+
+  // Collar / neck detail
+  ctx.beginPath();
+  ctx.arc(neckX, neckY + 4, sw * 0.14, 0, Math.PI);
+  ctx.strokeStyle = sc.collar;
+  ctx.lineWidth = Math.max(3, sw * 0.022);
+  ctx.stroke();
+
+  // ── Product-specific extras ──
+  if (pid === 'c2') { // Denim lapels + seam
+    const lw2 = sw * 0.11;
+    ctx.globalAlpha = 0.9;
+    [[neckX - lw2, -1], [neckX + lw2, 1]].forEach(([startX, dir]) => {
+      ctx.beginPath();
+      ctx.moveTo(startX, neckY + 2);
+      ctx.lineTo(startX + dir * lw2 * 0.8, neckY + th * 0.26);
+      ctx.lineTo(startX - dir * lw2 * 0.4, neckY + th * 0.34);
+      ctx.closePath();
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fill();
+    });
+    ctx.beginPath();
+    ctx.moveTo(neckX, neckY + 8);
+    ctx.lineTo(neckX, hipY);
+    ctx.strokeStyle = '#1e3a8a';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  if (pid === 'c3') { // Blazer lapels + buttons + collar
+    const lw2 = sw * 0.13;
+    [[-1, neckX - lw2 * 0.6], [1, neckX + lw2 * 0.6]].forEach(([dir, startX]) => {
+      ctx.beginPath();
+      ctx.moveTo(startX, neckY + 4);
+      ctx.lineTo(startX + dir * lw2 * 1.6, neckY + th * 0.26);
+      ctx.lineTo(startX + dir * lw2 * 0.2, neckY + th * 0.36);
+      ctx.closePath();
+      ctx.fillStyle = '#2a2a3a';
+      ctx.fill();
+    });
+    // White shirt collar peek
+    ctx.beginPath();
+    ctx.moveTo(neckX - lw2 * 0.5, neckY + 5);
+    ctx.lineTo(neckX, neckY - 5);
+    ctx.lineTo(neckX + lw2 * 0.5, neckY + 5);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    // Buttons
+    [0.42, 0.60].forEach(frac => {
+      ctx.beginPath();
+      ctx.arc(neckX, neckY + th * frac, Math.max(3, sw * 0.018), 0, Math.PI * 2);
+      ctx.fillStyle = '#5a5a6e';
+      ctx.fill();
+    });
+  }
+
+  if (pid === 'c4') { // Hoodie: hood + pocket + drawstrings
+    // Hood arc behind head
+    ctx.beginPath();
+    ctx.moveTo(neckX - sw * 0.3, neckY + 8);
+    ctx.quadraticCurveTo(neckX - sw * 0.2, neckY - th * 0.24, neckX, neckY - th * 0.28);
+    ctx.quadraticCurveTo(neckX + sw * 0.2, neckY - th * 0.24, neckX + sw * 0.3, neckY + 8);
+    ctx.fillStyle = '#57606e';
+    ctx.fill();
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Kangaroo pocket
+    const pktW = sw * 0.34, pktH = th * 0.13;
+    const pktX = neckX - pktW / 2, pktY = hipY - pktH - th * 0.05;
+    ctx.fillStyle = '#4b5563';
+    ctx.beginPath();
+    ctx.roundRect(pktX, pktY, pktW, pktH, 8);
+    ctx.fill();
+    // Drawstrings
+    ctx.beginPath();
+    ctx.moveTo(neckX - 7, neckY + 2);  ctx.lineTo(neckX - 16, hipY - th * 0.18);
+    ctx.moveTo(neckX + 7, neckY + 2);  ctx.lineTo(neckX + 16, hipY - th * 0.18);
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  if (pid === 'c5') { // Floral shirt: collar + flowers
+    // V-collar
+    ctx.beginPath();
+    ctx.moveTo(neckX - sw * 0.10, neckY + 2);
+    ctx.lineTo(neckX - sw * 0.22, neckY + th * 0.26);
+    ctx.moveTo(neckX + sw * 0.10, neckY + 2);
+    ctx.lineTo(neckX + sw * 0.22, neckY + th * 0.26);
+    ctx.strokeStyle = '#fb923c';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Flower blobs clipped to garment
+    const flowers = [
+      { x: neckX - sw*0.22, y: ls.y + th*0.18, r: sw*0.065, col: '#f97316' },
+      { x: neckX + sw*0.18, y: ls.y + th*0.34, r: sw*0.055, col: '#ec4899' },
+      { x: neckX - sw*0.08, y: ls.y + th*0.54, r: sw*0.06,  col: '#a855f7' },
+      { x: neckX + sw*0.05, y: ls.y + th*0.12, r: sw*0.045, col: '#22c55e' },
+      { x: neckX - sw*0.28, y: ls.y + th*0.46, r: sw*0.05,  col: '#f43f5e' },
+      { x: neckX + sw*0.28, y: ls.y + th*0.60, r: sw*0.055, col: '#f97316' },
+    ];
+    flowers.forEach(f => {
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.ellipse(f.x + Math.cos(a)*f.r*0.65, f.y + Math.sin(a)*f.r*0.65, f.r*0.48, f.r*0.28, a, 0, Math.PI * 2);
+        ctx.fillStyle = f.col;
+        ctx.globalAlpha = 0.7;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.r * 0.26, 0, Math.PI * 2);
+      ctx.fillStyle = '#fef08a';
+      ctx.globalAlpha = 0.9;
+      ctx.fill();
+    });
+  }
+
+  ctx.restore();
+}
+
+function demoDrawEyewear(ctx, b, pid) {
+  const { leX, reX, eyeY, faceW } = b;
+  const eyeSpan = reX - leX;
+  const lensR   = eyeSpan * 0.37;
+  const lensH   = lensR * (pid === 'e1' ? 0.58 : pid === 'e3' ? 1.1 : 1.0);
+
+  const frameColors = { e1: '#b8860b', e2: '#7c4f1e', e3: '#111' };
+  const lensColors  = { e1: 'rgba(160,120,40,0.55)', e2: 'rgba(100,65,30,0.35)', e3: 'rgba(10,10,10,0.80)' };
+  const fc = frameColors[pid] || '#222';
+  const lc = lensColors[pid]  || 'rgba(20,20,20,0.75)';
+
+  ctx.save();
+  ctx.globalAlpha = 0.93;
+
+  if (pid === 'e2') { // Round
+    [leX, reX].forEach(cx => {
+      ctx.beginPath();
+      ctx.ellipse(cx, eyeY, lensR, lensR, 0, 0, Math.PI * 2);
+      ctx.fillStyle = lc; ctx.fill();
+      ctx.strokeStyle = fc; ctx.lineWidth = Math.max(2.5, faceW * 0.025); ctx.stroke();
+    });
+  } else if (pid === 'e3') { // Wayfarer rectangle
+    const rw2 = lensR * 2.1, rh2 = lensR * 1.25;
+    [leX, reX].forEach(cx => {
+      ctx.beginPath();
+      ctx.roundRect(cx - rw2/2, eyeY - rh2/2, rw2, rh2, 5);
+      ctx.fillStyle = lc; ctx.fill();
+      ctx.strokeStyle = fc; ctx.lineWidth = Math.max(2.5, faceW * 0.025); ctx.stroke();
+    });
+  } else { // Aviator e1
+    [leX, reX].forEach(cx => {
+      ctx.beginPath();
+      ctx.ellipse(cx, eyeY, lensR, lensH, 0, 0, Math.PI * 2);
+      ctx.fillStyle = lc; ctx.fill();
+      ctx.strokeStyle = fc; ctx.lineWidth = Math.max(2.5, faceW * 0.025); ctx.stroke();
+      // Gold brow bar
+      ctx.beginPath();
+      ctx.moveTo(cx - lensR * 0.9, eyeY - lensH * 0.85);
+      ctx.lineTo(cx + lensR * 0.9, eyeY - lensH * 0.85);
+      ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 2.5; ctx.stroke();
+    });
+  }
+
+  // Bridge
+  ctx.beginPath();
+  ctx.moveTo(leX + lensR * 0.88, eyeY);
+  ctx.lineTo(reX - lensR * 0.88, eyeY);
+  ctx.strokeStyle = fc; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Temple arms
+  const armLen = faceW * 0.45;
+  ctx.beginPath();
+  ctx.moveTo(leX - lensR * 0.9, eyeY); ctx.lineTo(leX - lensR * 0.9 - armLen, eyeY + armLen * 0.12);
+  ctx.moveTo(reX + lensR * 0.9, eyeY); ctx.lineTo(reX + lensR * 0.9 + armLen, eyeY + armLen * 0.12);
+  ctx.strokeStyle = fc; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Lens reflections
+  ctx.globalAlpha = 0.18;
+  [leX, reX].forEach(cx => {
+    ctx.beginPath();
+    ctx.moveTo(cx - lensR*0.35, eyeY - lensH*0.55);
+    ctx.lineTo(cx - lensR*0.05, eyeY - lensH*0.15);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1.5, faceW * 0.012); ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function demoDrawCap(ctx, b) {
+  const { faceCX, headTop, faceW, faceH } = b;
+  const capW = faceW * 1.15;
+  const capH = capW * 0.44;
+  const brimH = capW * 0.09;
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+
+  // Dome
+  ctx.beginPath();
+  ctx.ellipse(faceCX, headTop + capH * 0.52, capW * 0.52, capH * 0.52, 0, Math.PI, 0, true);
+  ctx.lineTo(faceCX + capW * 0.52, headTop + capH * 0.52);
+  ctx.lineTo(faceCX - capW * 0.52, headTop + capH * 0.52);
+  ctx.closePath();
+  ctx.fillStyle = '#b45309'; ctx.fill();
+  ctx.strokeStyle = '#92400e'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Brim
+  ctx.beginPath();
+  ctx.ellipse(faceCX + capW * 0.08, headTop + capH * 0.52, capW * 0.52, brimH, -0.1, 0, Math.PI * 2);
+  ctx.fillStyle = '#92400e'; ctx.fill();
+  ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Logo circle
+  ctx.beginPath();
+  ctx.arc(faceCX, headTop + capH * 0.28, capW * 0.058, 0, Math.PI * 2);
+  ctx.fillStyle = '#fbbf24'; ctx.fill();
+
+  ctx.restore();
+}
+
+function demoDrawNecklace(ctx, b) {
+  const { ls, rs, neckX, neckY } = b;
+  const sw = rs.x - ls.x;
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+
+  // Main chain arc
+  ctx.beginPath();
+  ctx.moveTo(ls.x + sw * 0.14, neckY - 2);
+  ctx.quadraticCurveTo(neckX, neckY + sw * 0.13, rs.x - sw * 0.14, neckY - 2);
+  ctx.strokeStyle = '#d4af37'; ctx.lineWidth = Math.max(4, sw * 0.03); ctx.lineCap = 'round'; ctx.stroke();
+  // Link texture
+  ctx.strokeStyle = '#b8860b'; ctx.lineWidth = Math.max(2, sw * 0.012);
+  ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
+
+  // Pendant
+  ctx.beginPath();
+  ctx.arc(neckX, neckY + sw * 0.15, sw * 0.042, 0, Math.PI * 2);
+  ctx.fillStyle = '#fbbf24'; ctx.fill();
+  ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  ctx.restore();
+}
+
+function demoDrawWatch(ctx, b) {
+  const { lw, rw, shoulderW: sw } = b;
+  const wrist = lw;
+  const watchW = sw * 0.17;
+  const watchH = watchW * 1.22;
+
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+
+  // Strap
+  ctx.fillStyle = '#374151';
+  ctx.beginPath();
+  ctx.roundRect(wrist.x - watchW*0.38, wrist.y - watchH*0.22, watchW*0.76, watchH*1.05, 5);
+  ctx.fill();
+
+  // Case
+  ctx.fillStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.roundRect(wrist.x - watchW/2, wrist.y - watchH/2, watchW, watchH, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Dial
+  ctx.fillStyle = '#f9fafb';
+  ctx.beginPath();
+  ctx.roundRect(wrist.x - watchW*0.42, wrist.y - watchH*0.42, watchW*0.84, watchH*0.84, 4);
+  ctx.fill();
+
+  // Hands
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(wrist.x, wrist.y); ctx.lineTo(wrist.x, wrist.y - watchH*0.28); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(wrist.x, wrist.y); ctx.lineTo(wrist.x + watchW*0.22, wrist.y); ctx.stroke();
+
+  ctx.restore();
+}
+
+// ── Main fixed demo compositing ────────────────────────
 function createDemoResult(imgEl) {
   if (!imgEl || !uploadedDataURL) return;
 
@@ -401,47 +790,86 @@ function createDemoResult(imgEl) {
   const img = new Image();
 
   img.onload = () => {
-    canvas.width = img.width;
+    canvas.width  = img.width;
     canvas.height = img.height;
 
-    // Draw original
+    // 1. Draw original photo
     ctx.drawImage(img, 0, 0);
 
-    // Overlay product emoji as watermark / indicator
-    const emoji = selectedProduct?.emoji || '👕';
-    const category = selectedProduct?.category || 'clothing';
+    const pid = selectedProduct?.id || 'c1';
+    const cat = selectedProduct?.category || 'clothing';
 
-    // Colored tinted overlay for clothing
-    if (category === 'clothing') {
-      ctx.fillStyle = 'rgba(168, 85, 247, 0.08)';
-      ctx.fillRect(0, img.height * 0.25, img.width, img.height * 0.5);
-    } else if (category === 'eyewear') {
-      ctx.fillStyle = 'rgba(99, 102, 241, 0.07)';
-      ctx.fillRect(0, img.height * 0.12, img.width, img.height * 0.2);
-    }
+    // 2. Estimate body landmarks geometrically
+    const b = estimateBodyLandmarks(img.width, img.height);
 
-    // Draw emoji overlay
-    const fontSize = Math.floor(img.width * 0.15);
-    ctx.font = `${fontSize}px serif`;
-    ctx.globalAlpha = 0.55;
-    ctx.textAlign = 'center';
+    // Try loading realistic product PNG first
+    const prodImg = new Image();
+    prodImg.crossOrigin = 'anonymous';
+    prodImg.onload = () => {
+      ctx.save();
+      if (cat === 'clothing') {
+        const sw = b.shoulderW;
+        const gW = sw * 2.35;
+        const gH = gW * ((pid === 'c4') ? 1.0 : 1.12);
+        const cX = b.neckX;
+        const collarY = b.ls.y - sw * 0.04;
+        const cY = (collarY - gH * 0.10) + gH / 2;
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(prodImg, cX - gW/2, cY - gH/2, gW, gH);
+      } else if (cat === 'eyewear') {
+        const eyeSpan = b.reX - b.leX;
+        const gW = eyeSpan * 2.3;
+        const gH = gW * 0.44;
+        const cX = (b.leX + b.reX) / 2;
+        const cY = b.eyeY;
+        ctx.globalAlpha = 0.96;
+        ctx.drawImage(prodImg, cX - gW/2, cY - gH/2, gW, gH);
+      } else if (cat === 'accessories') {
+        if (pid === 'a1') { // Cap
+          const capW = b.faceW * 1.45;
+          const capH = capW * 0.62;
+          ctx.globalAlpha = 0.98;
+          ctx.drawImage(prodImg, b.faceCX - capW/2, b.headTop - capH * 0.35, capW, capH);
+        } else if (pid === 'a2') { // Necklace
+          const nW = b.shoulderW * 0.85;
+          const nH = nW * 0.65;
+          ctx.globalAlpha = 0.95;
+          ctx.drawImage(prodImg, b.neckX - nW/2, b.ls.y + nH * 0.15, nW, nH);
+        } else if (pid === 'a3') { // Watch
+          const wSize = b.shoulderW * 0.26;
+          ctx.globalAlpha = 0.95;
+          ctx.drawImage(prodImg, b.lw.x - wSize/2, b.lw.y - wSize/2, wSize, wSize);
+        }
+      }
+      ctx.restore();
 
-    let emojiY;
-    if (category === 'clothing') emojiY = img.height * 0.48;
-    else if (category === 'eyewear') emojiY = img.height * 0.3;
-    else emojiY = img.height * 0.4;
+      // Watermark
+      const wSize = Math.max(11, img.width * 0.022);
+      ctx.font = `bold ${wSize}px Outfit, sans-serif`;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(168,85,247,0.75)';
+      ctx.globalAlpha = 0.7;
+      ctx.fillText('MirrorAI • Virtual Try-On', img.width - 14, img.height - 12);
+      ctx.globalAlpha = 1;
 
-    ctx.fillText(emoji, img.width / 2, emojiY);
-    ctx.globalAlpha = 1;
+      imgEl.src = canvas.toDataURL('image/jpeg', 0.94);
+    };
 
-    // AI processing text stamp
-    ctx.fillStyle = 'rgba(168,85,247,0.7)';
-    ctx.font = `bold ${Math.floor(img.width * 0.025)}px Outfit, sans-serif`;
-    ctx.globalAlpha = 0.6;
-    ctx.fillText('MirrorAI • Virtual Try-On', img.width / 2, img.height - 20);
-    ctx.globalAlpha = 1;
+    prodImg.onerror = () => {
+      // Fallback to procedural vector drawing
+      if (cat === 'clothing') {
+        demoDrawClothing(ctx, b, pid);
+      } else if (cat === 'eyewear') {
+        demoDrawEyewear(ctx, b, pid);
+      } else if (cat === 'accessories') {
+        if (pid === 'a1') demoDrawCap(ctx, b);
+        else if (pid === 'a2') demoDrawNecklace(ctx, b);
+        else if (pid === 'a3') demoDrawWatch(ctx, b);
+      }
+      imgEl.src = canvas.toDataURL('image/jpeg', 0.93);
+    };
 
-    imgEl.src = canvas.toDataURL('image/jpeg', 0.92);
+    prodImg.src = `assets/products/${pid}.png`;
   };
 
   img.src = uploadedDataURL;
