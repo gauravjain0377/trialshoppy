@@ -782,120 +782,39 @@ function demoDrawWatch(ctx, b) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  QUAD-WARP ENGINE (shared with camera AR overlay)
-//  Maps the garment PNG onto a 4-corner body quad for perspective realism
+//  UPGRADED PHOTO TRY-ON COMPOSITING
 // ══════════════════════════════════════════════════════════════════════
-function drawImageWarped(ctx, img, tl, tr, br, bl, alpha = 1.0) {
-  if (!img || !img.complete || img.naturalWidth === 0) return;
 
-  const STEPS = 24;  // strip count — more = smoother warp
-  const iW = img.naturalWidth;
-  const iH = img.naturalHeight;
-
-  ctx.save();
-  ctx.globalAlpha = alpha;
-
-  for (let i = 0; i < STEPS; i++) {
-    const t0 = i       / STEPS;
-    const t1 = (i + 1) / STEPS;
-
-    // Left & right edge of this strip
-    const l0x = tl.x + (bl.x - tl.x) * t0,  l0y = tl.y + (bl.y - tl.y) * t0;
-    const l1x = tl.x + (bl.x - tl.x) * t1,  l1y = tl.y + (bl.y - tl.y) * t1;
-    const r0x = tr.x + (br.x - tr.x) * t0,  r0y = tr.y + (br.y - tr.y) * t0;
-    const r1x = tr.x + (br.x - tr.x) * t1,  r1y = tr.y + (br.y - tr.y) * t1;
-
-    const sy0  = iH * t0;
-    const sy1  = iH * t1;
-    const srcH = sy1 - sy0;
-    if (srcH <= 0) continue;
-
-    // Affine: map (0,sy0)→l0, (iW,sy0)→r0, (0,sy1)→l1
-    const a = (r0x - l0x) / iW;   // m11
-    const b = (l1x - l0x) / srcH; // m12
-    const c = l0x;                 // dx
-    const d = (r0y - l0y) / iW;   // m21
-    const e = (l1y - l0y) / srcH; // m22
-    const f = l0y;                 // dy
-
-    ctx.save();
-    ctx.setTransform(a, d, b, e, c, f);
-    ctx.beginPath();
-    ctx.rect(0, sy0, iW, srcH + 0.5);
-    ctx.clip();
-    ctx.drawImage(img, 0, 0, iW, iH);
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
-// Draw a soft radial shadow behind the garment quad for body depth
-function drawGarmentShadow(ctx, tl, tr, br, bl) {
-  const cx = (tl.x + tr.x + br.x + bl.x) / 4;
-  const cy = (tl.y + tr.y + br.y + bl.y) / 4;
-  const r  = Math.max(
-    Math.hypot(tr.x - tl.x, tr.y - tl.y),
-    Math.hypot(bl.x - tl.x, bl.y - tl.y)
-  ) * 0.52;
-
-  const grad = ctx.createRadialGradient(cx, cy + r * 0.04, r * 0.08, cx, cy, r * 1.08);
-  grad.addColorStop(0,   'rgba(0,0,0,0.22)');
-  grad.addColorStop(0.55,'rgba(0,0,0,0.08)');
-  grad.addColorStop(1,   'rgba(0,0,0,0.00)');
-
-  ctx.save();
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(tl.x, tl.y);
-  ctx.lineTo(tr.x, tr.y);
-  ctx.lineTo(br.x, br.y);
-  ctx.lineTo(bl.x, bl.y);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-// ── Clothing quad warp onto estimated body landmarks ─────────────────
+// ══════════════════════════════════════════════════════════════════════
+//  CLOTHING COMPOSITE — clean translate + rotate + drawImage
+//  Same approach as the reference app and camera.html
+// ══════════════════════════════════════════════════════════════════════
 function compositeClothing(ctx, img, b, pid) {
-  const { ls, rs, lh, rh, neckX, neckY, shoulderW: sw, hipY } = b;
+  const { ls, rs, neckX, neckY, shoulderW: sw } = b;
 
-  const aspect = (pid === 'c4') ? 1.02 : (pid === 'c2') ? 1.15 : 1.12;
-  const garmentW = sw * 2.42;
-  const garmentH = garmentW * aspect;
+  // Garment dimensions based on shoulder width
+  const garmentW = sw * 2.40;
+  const garmentH = garmentW * (img.naturalHeight / img.naturalWidth);
 
-  // Collar top: just above shoulder joints, anchored to neck
+  // Collar Y: just above shoulders, below neck
   const shoulderMidY = (ls.y + rs.y) / 2;
-  const collarY    = Math.min(shoulderMidY - sw * 0.03, neckY + sw * 0.45);
-  const garmentTopY = collarY - garmentH * 0.10;
+  const collarY = Math.min(shoulderMidY - sw * 0.04, neckY + sw * 0.45);
+
+  // Garment top: collar is ~10% down in the PNG
+  const collarFrac = 0.10;
+  const garmentTopY = collarY - garmentH * collarFrac;
+  const garmentCenterX = neckX;
+  const garmentCenterY = garmentTopY + garmentH / 2;
 
   // Shoulder tilt
-  const angle   = Math.atan2(rs.y - ls.y, rs.x - ls.x);
-  const tiltCos = Math.cos(angle);
-  const tiltSin = Math.sin(angle);
+  const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
 
-  const cx = neckX;
-  const cy = (ls.y + rs.y) / 2;
-  const topDY = garmentTopY - cy;
-  const botDY = garmentTopY + garmentH - cy;
-
-  const topHalf = garmentW / 2;
-  const botHalf = garmentW / 2 * 1.04; // slight A-line flare
-
-  function rotPt(dx, dy) {
-    return {
-      x: cx + dx * tiltCos - dy * tiltSin,
-      y: cy + dx * tiltSin + dy * tiltCos,
-    };
-  }
-
-  const tl = rotPt(-topHalf, topDY);
-  const tr = rotPt(+topHalf, topDY);
-  const bl = rotPt(-botHalf, botDY);
-  const br = rotPt(+botHalf, botDY);
-
-  drawGarmentShadow(ctx, tl, tr, br, bl);
-  drawImageWarped(ctx, img, tl, tr, br, bl, 1.0);
+  ctx.save();
+  ctx.translate(garmentCenterX, garmentCenterY);
+  ctx.rotate(angle);
+  ctx.globalAlpha = 1.0;
+  ctx.drawImage(img, -garmentW / 2, -garmentH / 2, garmentW, garmentH);
+  ctx.restore();
 }
 
 // ── Eyewear overlay ──────────────────────────────────────────────────

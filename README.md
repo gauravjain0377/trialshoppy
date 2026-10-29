@@ -1,240 +1,142 @@
-# 🪞 MirrorAI — AI-Powered Virtual Try-On Platform
-
-> **Built for TrialShoppy Technical Assessment** | AI/ML · Computer Vision · AR/VR Internship
+# 🪞 MirrorAI — Virtual Try-On Platform
+> **TrialShoppy Technical Assessment Submission**  
+> **Role:** Technical Development Intern (AI/ML, Generative AI, Computer Vision & AR/VR)  
+> **Submission Format:** Working Prototype + Complete Source Code + Technical Report  
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![MediaPipe](https://img.shields.io/badge/MediaPipe-0.10-FF6F00?logo=google&logoColor=white)](https://mediapipe.dev)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-Pose%20%26%20Face-FF6F00?logo=google&logoColor=white)](https://mediapipe.dev)
+[![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?logo=opencv&logoColor=white)](https://opencv.org)
 [![License](https://img.shields.io/badge/License-MIT-purple)](LICENSE)
 
-MirrorAI is a full-stack AI virtual try-on platform that allows users to see how clothing, eyewear, and accessories look on them — without physically trying them on. Upload a photo, pick a product, and AI does the rest.
+MirrorAI is an end-to-end Virtual Try-On (VTON) platform featuring dual operational paradigms:
+1. **Interactive Static Photo Try-On**: A 4-step wizard that detects anatomical keypoints, processes garment transparency masks, and performs alignment with server-side OpenCV/rembg or instant client fallbacks.
+2. **Live AR Camera Try-On**: Real-time browser-based camera feed leveraging MediaPipe BlazePose (33 landmarks) at 30+ FPS, incorporating shoulder angle tilting, dynamic skeletal scaling, and exponential landmark jitter filtering.
 
 ---
 
-## ✨ Features
+## 📑 Assessment Deliverables Checklist
 
-- 📸 **Photo Upload** — Drag & drop or browse your photo
-- 👕 **Clothing Try-On** — AI detects 33 body landmarks with MediaPipe Pose and overlays clothing
-- 🕶️ **Eyewear Try-On** — 468 face landmarks for precise glasses placement with MediaPipe Face Mesh
-- 🎒 **Accessories** — Hats, necklaces, watches overlaid using pose/face detection
-- ✂️ **Background Removal** — Product backgrounds auto-removed with rembg (U2Net model)
-- 🎨 **Image Compositing** — OpenCV perspective warping + alpha blending
-- 💾 **Download Result** — Save your try-on image
-- 🌐 **Beautiful UI** — Premium dark glassmorphism design with animations
+- [x] **Source Code**: Fully documented, runnable repository.
+- [x] **Requirements & Dependencies**: Provided in [`requirements.txt`](requirements.txt).
+- [x] **Setup & Execution Instructions**: Detailed below for Windows, macOS, and Linux.
+- [x] **Architecture Diagram**: End-to-end dataflow documented.
+- [x] **Technical Report**: Comprehensive deep-dive in [`TECHNICAL_REPORT.md`](TECHNICAL_REPORT.md).
+- [x] **Attributions & Models**: Full list of open-source models, libraries, and cascades.
+- [x] **Limitations & Future Improvements**: Candidly documented per evaluation guidelines.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
 ```
-User Photo (Upload)
-       ↓
-  FastAPI Backend (localhost:8000)
-       ↓
-  MediaPipe ── Pose Detection (Clothing) → 33 body landmarks
-            └─ Face Mesh (Eyewear)      → 468 face landmarks
-       ↓
-  rembg ── Remove product background (U2Net)
-       ↓
-  OpenCV ── Perspective warp + Alpha blend
-       ↓
-  Pillow ── Final composite image
-       ↓
-  Result JPG → Served to Frontend
-```
-
----
-
-## 🛠️ Tech Stack
-
-| Component | Technology | Cost |
-|---|---|---|
-| Frontend | HTML, CSS (Glassmorphism), Vanilla JS | Free |
-| Backend | Python + FastAPI | Free |
-| Pose Detection | MediaPipe Pose (Google) | Free |
-| Face Mesh | MediaPipe Face Mesh (Google) | Free |
-| Background Removal | rembg + U2Net model | Free |
-| Image Processing | OpenCV + Pillow | Free |
-| Fonts | Google Fonts (Outfit, Inter) | Free |
-
-> **Zero paid APIs** — everything runs locally on your machine.
-
----
-
-## 📁 Project Structure
-
-```
-mirriorai/
-├── frontend/
-│   ├── index.html          ← Landing page
-│   ├── catalog.html        ← Product catalog
-│   ├── tryon.html          ← Main try-on app
-│   ├── about.html          ← About + architecture
-│   ├── css/
-│   │   ├── main.css        ← Global design system
-│   │   ├── catalog.css     ← Catalog styles
-│   │   └── tryon.css       ← Try-on app styles
-│   └── js/
-│       ├── main.js         ← Global JS (nav, animations)
-│       ├── catalog.js      ← Product catalog + filtering
-│       └── tryon.js        ← Try-on logic + API calls
-├── backend/
-│   └── main.py             ← FastAPI app (AI pipeline)
-├── products/
-│   ├── clothing/           ← Product images
-│   └── eyewear/
-├── uploads/                ← User uploaded photos (auto-created)
-├── results/                ← Generated try-on results (auto-created)
-├── requirements.txt        ← Python dependencies
-└── README.md
+                                [ User Client ]
+                                /              \
+                               /                \
+                    (Photo Upload)            (Live Camera AR)
+                          |                          |
+                          v                          v
+                  [FastAPI Backend]          [MediaPipe BlazePose]
+                  - OpenCV Cascades          - 33 Body Landmarks
+                  - rembg (U2-Net)           - EMA Jitter Filter
+                  - Alpha Matting            - Affine Rotate & Translate
+                          |                          |
+                          v                          v
+                  [Composite Image]          [Real-Time Canvas2D]
 ```
 
 ---
 
-## 🚀 Setup & Running
+## 🚀 Quickstart & Setup Guide
 
-### Prerequisites
-- Python 3.10+
-- Node.js (optional, just for local server)
-- Git
+### 1. Prerequisites
+- **Python 3.10+**
+- Modern Web Browser (Google Chrome or Microsoft Edge recommended for MediaPipe WebAssembly support)
+- Working Webcam (for Live AR mode)
 
-### Step 1 — Clone the Repository
+### 2. Environment Setup
 ```bash
-git clone https://github.com/YOUR_USERNAME/mirriorai.git
-cd mirriorai
-```
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/trialshoppy.git
+cd trialshoppy
 
-### Step 2 — Install Python Dependencies
-```bash
+# Create and activate virtual environment
+python -m venv venv
+
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# Linux / macOS:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-> **Note:** `mediapipe` and `rembg` may take a few minutes to download their models on first run (~300MB). This is one-time only.
-
-### Step 3 — Start the Backend
+### 3. Launching the Backend (API Server)
 ```bash
 cd backend
 python main.py
 ```
+- API will start at: `http://localhost:8000`
+- Interactive API Docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/api/health`
 
-The API will be available at: `http://localhost:8000`
-
-You can verify it's running by visiting: `http://localhost:8000/api/health`
-
-### Step 4 — Open the Frontend
-
-**Option A — Direct open (simplest):**
-Open `frontend/index.html` directly in your browser.
-
-**Option B — Local server (recommended for full features):**
+### 4. Running the Frontend
+In a new terminal window:
 ```bash
-# From project root
+# From the project root directory:
 python -m http.server 3000 --directory frontend
-# Then open: http://localhost:3000
 ```
+Now navigate to: **`http://localhost:3000`** in your browser.
 
-**Option C — VS Code Live Server:**
-Right-click `frontend/index.html` → Open with Live Server
-
----
-
-## 🖥️ Usage
-
-1. Open `index.html` (or `http://localhost:3000`)
-2. Click **"Start Try-On"**
-3. **Step 1:** Upload a clear, front-facing photo
-4. **Step 2:** Browse and select a product (clothing, eyewear, or accessory)
-5. **Step 3:** Click **"Generate Try-On"** — AI processes your image
-6. **Step 4:** View your result, compare before/after, and download!
+- **Main Landing**: `http://localhost:3000/index.html`
+- **Photo Try-On App**: `http://localhost:3000/tryon.html`
+- **Live AR Camera**: `http://localhost:3000/camera.html`
+- **Catalog Explorer**: `http://localhost:3000/catalog.html`
 
 ---
 
-## 🤖 AI Models Used
+## 🤖 AI Models, Datasets & Libraries Used
 
-| Model | Purpose | Source |
-|---|---|---|
-| MediaPipe Pose | Body landmark detection (33 points) | Google MediaPipe |
-| MediaPipe Face Mesh | Face landmark detection (468 points) | Google MediaPipe |
-| U2Net (via rembg) | Semantic background removal | rembg library |
-| OpenCV DNN | Image warping and compositing | OpenCV |
-
----
-
-## ⚠️ Known Limitations
-
-1. **Photo requirements:** Best results with front-facing, well-lit photos. Side angles reduce accuracy.
-2. **Realism:** This is an overlay-based approach, not diffusion-based generation. GPU-based models (IDM-VTON, OOTDiffusion) would produce more photorealistic results but require significant compute.
-3. **Product images:** Demo uses generated silhouettes. Real product photos significantly improve results.
-4. **Full-body clothing:** Works best for upper-body garments. Lower-body requires additional leg landmark mapping.
-5. **Speed:** Processing time is 1–5 seconds on CPU. GPU acceleration would improve this dramatically.
+| Component | Library / Framework | Model / Method | Purpose |
+|---|---|---|---|
+| **Pose Tracking** | MediaPipe (WASM/JS) | BlazePose (33 keypoints) | Real-time skeletal body tracking & shoulder span measurement |
+| **Face Landmark** | MediaPipe / OpenCV | Haar Cascades & Face Mesh | Eye line alignment for sunglasses & eyewear fitting |
+| **Background Matting** | `rembg` | U2-Net | Automated product background removal |
+| **Image Transform** | OpenCV (`cv2`) & Pillow | Affine Transform & Alpha Matting | Rigid alignment & compositing |
+| **Web Service** | FastAPI + Uvicorn | ASGI Async Pipeline | Try-On endpoint servicing |
 
 ---
 
-## 🔮 Future Improvements
+## ⚠️ Known Limitations & Candid Assessment Notes
 
-- [ ] Diffusion-based try-on (IDM-VTON / OOTDiffusion) for photorealistic results
-- [ ] Real-time webcam AR mode using WebRTC
-- [ ] E-commerce plugin (Shopify, WooCommerce integration)
-- [ ] Body measurement estimation from photo (size recommendation)
-- [ ] User accounts with try-on history
-- [ ] Mobile app (React Native / Flutter)
+Per the assessment instruction (*"Clearly mention any incomplete features, limitations, or mocked components"*):
 
----
-
-## 📋 API Reference
-
-### `POST /api/tryon`
-Main virtual try-on endpoint.
-
-**Form Data:**
-- `photo` (file) — User's photo (JPG/PNG/WEBP, max 10MB)
-- `product_id` (string) — Product ID (e.g., `c1`, `e1`, `a2`)
-- `product_name` (string) — Product name
-- `category` (string) — `clothing` | `eyewear` | `accessories`
-
-**Response:**
-```json
-{
-  "success": true,
-  "result_url": "http://localhost:8000/results/tryon_abc12345.jpg",
-  "result_id": "abc12345",
-  "landmarks_count": 33,
-  "processing_time": 1.24,
-  "mediapipe_used": true,
-  "rembg_used": true
-}
-```
-
-### `GET /api/health`
-Returns server health and dependency status.
-
-### `GET /api/products`
-Returns the full product catalog as JSON.
+1. **2D Affine vs. True 3D Volumetric Deformation**:
+   - Current live AR utilizes real-time 2D planar projection (translating, rotating, and scaling transparent garment assets to track the shoulder vector).
+   - *Limitation*: When a user turns their body sideways, raises their arms, or pulls on their collar, a 2D planar asset cannot deform into natural 3D folds, creases, or perspective foreshortening. An experimental quad-strip warp created unacceptable slice artifacts and was deprecated in favor of stable affine tracking.
+2. **Dynamic Occlusion (Arms & Hands in Front of Garment)**:
+   - When a person holds their collar or crosses their arms, simple canvas layering draws the garment over the hands. A complete commercial solution requires real-time per-pixel depth segmentation masks.
+3. **Asset Dependency**:
+   - The visual fidelity relies directly on clean, front-facing transparent flat-lay PNGs. Images containing dual views (front + back) or model photography degrade realism.
 
 ---
 
-## 📸 Screenshots
+## 🔮 Roadmap to Enterprise-Grade AR (Amazon / Snapchat Level)
 
-> Run the application and open the browser to see the full UI.
-
-Pages:
-- **Landing Page** (`index.html`) — Hero section, how-it-works, features, CTA
-- **Catalog** (`catalog.html`) — Filterable product grid with search and modal
-- **Try-On** (`tryon.html`) — 4-step guided try-on flow
-- **About** (`about.html`) — Architecture, tech stack, AI pipeline, limitations
-
----
-
-## 👨‍💻 Technical Report
-
-See [`TECHNICAL_REPORT.md`](TECHNICAL_REPORT.md) for the full implementation write-up.
+1. **Phase 1: Generative AI Diffusion Pipeline (IDM-VTON / OOTDiffusion)**
+   - Connect photo upload to a DensePose-guided latent diffusion model running on an asynchronous GPU task queue (Celery/Redis) to produce photorealistic drapery, wrinkles, and shadows.
+2. **Phase 2: Three.js 3D Garment Mesh Engine**
+   - Replace flat 2D PNG overlays with 3D rigged glTF meshes.
+   - Bind MediaPipe skeletal joints to 3D bones using inverse kinematics (IK) for 360-degree rotation.
+3. **Phase 3: Multi-modal Hand & Gesture Interaction**
+   - Concurrently deploy MediaPipe Hands to detect pinch and pull gestures near collar coordinates, triggering reactive cloth blend-shapes.
 
 ---
 
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
+## 📄 Documentation Links
+- Detailed Technical Analysis: [`TECHNICAL_REPORT.md`](TECHNICAL_REPORT.md)
+- REST API Reference: `http://localhost:8000/docs`
 
 ---
-
-*Built with ❤️ using open-source AI tools. No paid APIs. No data shared externally.*
+*Developed for the TrialShoppy Technical Development Internship recruitment assessment.*

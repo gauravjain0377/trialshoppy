@@ -436,13 +436,6 @@ let trackingActive   = false;
 const SMOOTH_ALPHA    = 0.40;   // 0=full smooth, 1=raw. 0.40 = nice balance
 let smoothedLandmarks = null;
 
-// Cloth physics state — makes garment feel weighted
-const clothState = {
-  velY: 0,      // vertical cloth momentum (hem sway)
-  offsetY: 0,   // current cloth drop offset
-  rotation: 0,  // tilt smoothed
-};
-
 const video   = document.getElementById('video');
 const canvas  = document.getElementById('overlay-canvas');
 const ctx     = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
@@ -504,262 +497,66 @@ function smoothLandmarks(raw) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  PERSPECTIVE QUAD TRANSFORM
-//  Maps the flat garment image to a 4-point quad on the body.
-//  Uses a 2D projective (homography) approach via canvas setTransform.
-//  For canvas2D we approximate with a series of horizontal strip warps
-//  (since true perspective isn't natively available in 2D canvas).
-// ══════════════════════════════════════════════════════════════════════
-function drawImageWarped(ctx, img, tl, tr, br, bl, alpha = 1.0) {
-  if (!img || !img.complete || img.naturalWidth === 0 || img._failed) return;
-
-  const STEPS = 20;   // more = smoother warp, more CPU
-  const iW = img.naturalWidth;
-  const iH = img.naturalHeight;
-
-  ctx.save();
-  ctx.globalAlpha = alpha;
-
-  for (let i = 0; i < STEPS; i++) {
-    const t0 = i       / STEPS;
-    const t1 = (i + 1) / STEPS;
-
-    // Left & right edge points at t0 and t1
-    const l0x = tl.x + (bl.x - tl.x) * t0,  l0y = tl.y + (bl.y - tl.y) * t0;
-    const l1x = tl.x + (bl.x - tl.x) * t1,  l1y = tl.y + (bl.y - tl.y) * t1;
-    const r0x = tr.x + (br.x - tr.x) * t0,  r0y = tr.y + (br.y - tr.y) * t0;
-    const r1x = tr.x + (br.x - tr.x) * t1,  r1y = tr.y + (br.y - tr.y) * t1;
-
-    // Source slice in image
-    const sy0 = iH * t0;
-    const sy1 = iH * t1;
-    const srcH = sy1 - sy0;
-    if (srcH <= 0) continue;
-
-    // Draw horizontal strip mapped to the trapezoid slice
-    const dstTopW  = Math.hypot(r0x - l0x, r0y - l0y);
-    const dstBotW  = Math.hypot(r1x - l1x, r1y - l1y);
-    const dstH     = Math.hypot((l1x + r1x)/2 - (l0x + r0x)/2, (l1y + r1y)/2 - (l0y + r0y)/2) * STEPS / STEPS;
-    const dstMaxW  = Math.max(dstTopW, dstBotW, 1);
-
-    // Compute affine transform: map source strip rect to dest trapezoid (top-left as origin)
-    // We use a skewed affine that accounts for the horizontal stretch
-    const scaleX = dstTopW / iW;
-    const shearX = (r1x - r0x - (r0x - l0x) * (dstBotW / dstTopW)) / (iH * (1/STEPS));
-
-    // Build 3-point affine: (0,sy0) → l0, (iW,sy0) → r0, (0,sy1) → l1
-    const a = (r0x - l0x) / iW;     // scaleX
-    const b = (l1x - l0x) / srcH;   // shearX (from vertical progress)
-    const c = l0x;                   // tx
-    const d = (r0y - l0y) / iW;     // shearY
-    const e = (l1y - l0y) / srcH;   // scaleY
-    const f = l0y;                   // ty
-
-    ctx.save();
-    ctx.setTransform(a, d, b, e, c, f);
-
-    // Clip to strip region in transformed space (prevent overdraw)
-    ctx.beginPath();
-    ctx.rect(0, sy0, iW, srcH + 0.5);
-    ctx.clip();
-
-    ctx.drawImage(img, 0, 0, iW, iH);
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  DRAW BODY SILHOUETTE / DEPTH SHADOW
-//  Adds a soft shadow behind the garment for realistic depth
-// ══════════════════════════════════════════════════════════════════════
-function drawBodyShadow(tl, tr, br, bl) {
-  const cx = (tl.x + tr.x + br.x + bl.x) / 4;
-  const cy = (tl.y + tr.y + br.y + bl.y) / 4;
-  const r  = Math.max(Math.hypot(tr.x - tl.x, tr.y - tl.y),
-                       Math.hypot(bl.x - tl.x, bl.y - tl.y)) * 0.55;
-
-  const grad = ctx.createRadialGradient(cx, cy + r * 0.05, r * 0.1, cx, cy, r * 1.1);
-  grad.addColorStop(0,   'rgba(0,0,0,0.28)');
-  grad.addColorStop(0.6, 'rgba(0,0,0,0.10)');
-  grad.addColorStop(1,   'rgba(0,0,0,0.00)');
-
-  ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(tl.x, tl.y);
-  ctx.lineTo(tr.x, tr.y);
-  ctx.lineTo(br.x, br.y);
-  ctx.lineTo(bl.x, bl.y);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  DRAW EDGE BLEND
-//  Feathers the garment edges into the video for a natural look
-// ══════════════════════════════════════════════════════════════════════
-function drawEdgeBlend(tl, tr, br, bl, blendPx = 18) {
-  // We draw a slightly larger quad with transparent fill to "feather" the edge
-  // Done by drawing the garment with a clip path that has a soft gradient border
-  // This is approximated by drawing a blurred shadow around the quad boundary
-  ctx.save();
-  ctx.shadowColor  = 'rgba(0,0,0,0)';
-  ctx.globalAlpha  = 0;
-  ctx.restore();
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  CLOTH PHYSICS — makes the bottom hem gently sway
-// ══════════════════════════════════════════════════════════════════════
-const GRAVITY    = 0.04;   // pull down
-const DAMPING    = 0.82;   // energy loss per frame
-const HEM_DROOP  = 0.06;   // max hem droop as fraction of garment height
-
-function updateClothPhysics(garmentH) {
-  // Simple spring-gravity for hem droop
-  clothState.velY = (clothState.velY + GRAVITY) * DAMPING;
-  clothState.offsetY += clothState.velY;
-  // Clamp to max droop
-  const maxDrop = garmentH * HEM_DROOP;
-  if (clothState.offsetY > maxDrop) {
-    clothState.offsetY = maxDrop;
-    clothState.velY *= -0.3; // bounce
-  }
-  if (clothState.offsetY < 0) {
-    clothState.offsetY = 0;
-    clothState.velY = 0;
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════
 //  MAIN GARMENT DRAWING — CLOTHING (shirts, hoodies, jackets)
+//
+//  How the reference app works (and how we do it now):
+//    1. Detect shoulders → get width, midpoint, tilt angle
+//    2. Scale garment PNG to match body width
+//    3. Position collar at neck/shoulder junction
+//    4. Rotate to match shoulder tilt
+//    5. Simple drawImage — the PNG transparency does the rest
+//
+//  That's it. Clean, fast, looks perfect. No strip warping needed.
 // ══════════════════════════════════════════════════════════════════════
 function drawClothing(lms, W, H, product) {
   const ls   = lm(lms, 11, W, H, 0.12); // left shoulder
   const rs   = lm(lms, 12, W, H, 0.12); // right shoulder
-  const lh   = lm(lms, 23, W, H, 0.08); // left hip
-  const rh   = lm(lms, 24, W, H, 0.08); // right hip
   const nose = lm(lms, 0,  W, H, 0.08); // nose (for collar Y)
-  const le   = lm(lms, 13, W, H, 0.08); // left elbow
-  const re   = lm(lms, 14, W, H, 0.08); // right elbow
-  const lw   = lm(lms, 15, W, H, 0.06); // left wrist
-  const rw   = lm(lms, 16, W, H, 0.06); // right wrist
 
   if (!ls || !rs) return;
 
-  const sw = Math.hypot(rs.x - ls.x, rs.y - ls.y); // shoulder width (pixels)
+  const pImg = productImages[product.id];
+  if (!pImg || !pImg.complete || pImg.naturalWidth === 0 || pImg._failed) return;
+
+  // ── Shoulder measurement
+  const sw = Math.hypot(rs.x - ls.x, rs.y - ls.y);
   if (sw < 20 || sw > W * 0.98) return;
 
-  const aspect = product.aspectRatio || 1.10;
+  // ── Garment size
+  //    The PNG is a flatlay; we scale it so its width covers
+  //    the person's full upper body (shoulders + sleeves).
+  //    ~2.4× skeleton shoulder distance = realistic coverage.
+  const garmentW = sw * 2.40;
+  const garmentH = garmentW * (pImg.naturalHeight / pImg.naturalWidth);
 
-  // ── Garment dimensions
-  //   Width = shoulder span × ~2.4 to cover full body width incl. sleeves
-  //   This matches how flatlay garment PNGs are framed
-  const garmentW = sw * 2.42;
-  const garmentH = garmentW * aspect;
-
-  // ── Collar Y: slightly above shoulder joints, below nose
+  // ── Anchor point: collar center
+  //    The collar opening in a typical flatlay PNG sits at roughly
+  //    8-12% down from the top edge. We position the garment so
+  //    that point lands right at the base of the person's neck.
+  const shoulderMidX = (ls.x + rs.x) / 2;
   const shoulderMidY = (ls.y + rs.y) / 2;
+
+  // Collar Y = slightly above shoulders, but below nose
   const collarY = nose
-    ? Math.min(shoulderMidY - sw * 0.03, nose.y + sw * 0.50)
-    : shoulderMidY - sw * 0.03;
+    ? Math.min(shoulderMidY - sw * 0.04, nose.y + sw * 0.50)
+    : shoulderMidY - sw * 0.04;
 
-  // Garment top = collar position minus the collar-in-PNG offset (collar at ~10% from top)
-  const garmentTopY = collarY - garmentH * 0.10;
+  // How far down the PNG is the collar? ~10% from top
+  const collarFrac = 0.10;
+  const garmentTopY = collarY - garmentH * collarFrac;
+  const garmentCenterX = shoulderMidX;
+  const garmentCenterY = garmentTopY + garmentH / 2;
 
-  // Shoulder tilt angle (person leaning left/right)
+  // ── Shoulder tilt (person leaning)
   const tiltAngle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
 
-  // ── Cloth physics for hem
-  updateClothPhysics(garmentH);
-  const hemDropL = clothState.offsetY * 0.6;
-  const hemDropR = clothState.offsetY * 0.8;
-
-  // ── Mid shoulder center
-  const cx = (ls.x + rs.x) / 2;
-  const cy = (ls.y + rs.y) / 2;
-
-  // ── Build 4 corner points of the garment quad on the body
-  // The garment is drawn as a QUAD (not just a rect) to simulate
-  // how cloth wraps the torso (slight perspective + tilt)
-
-  const halfW  = garmentW / 2;
-  const halfW2 = garmentW / 2;   // could narrow at bottom for taper
-
-  // Hip Y (use actual hip landmarks if visible, else estimate from shoulder)
-  const hipMidY = (lh && rh)
-    ? (lh.y + rh.y) / 2
-    : shoulderMidY + garmentH * 0.88;
-
-  const hipMidX = (lh && rh) ? (lh.x + rh.x) / 2 : cx;
-
-  // ── Garment quad corners (in garment space, rotated by shoulder tilt)
-  // We rotate around the chest center
-
-  // Top-left, top-right of collar line
-  const tiltCos = Math.cos(tiltAngle);
-  const tiltSin = Math.sin(tiltAngle);
-
-  // Helper: rotate vector (dx, dy) by tiltAngle around center (cx, cy) → absolute point
-  function rotPt(dx, dy) {
-    return {
-      x: cx + dx * tiltCos - dy * tiltSin,
-      y: cy + dx * tiltSin + dy * tiltCos,
-    };
-  }
-
-  // In rotated space:
-  const topDY = garmentTopY - cy;  // how far above cy the garment top is
-  const botDY = garmentTopY + garmentH - cy; // how far below cy the garment bottom is
-
-  // Horizontal spread (garment is wider at hem for flare)
-  const topSpread = halfW * 1.00;
-  const botSpread = halfW * 1.04;  // slightly wider at hem (A-line)
-
-  const tl = rotPt(-topSpread,  topDY);
-  const tr = rotPt(+topSpread,  topDY);
-  // Bottom left/right get cloth physics sway
-  const bl_raw = rotPt(-botSpread, botDY);
-  const br_raw = rotPt(+botSpread, botDY);
-
-  // Apply hem drop (cloth physics)
-  const bl = { x: bl_raw.x, y: bl_raw.y + hemDropL };
-  const br = { x: br_raw.x, y: br_raw.y + hemDropR };
-
-  // ── Draw subtle body shadow behind garment
-  drawBodyShadow(tl, tr, br, bl);
-
-  // ── Draw garment using quad warp
-  const pImg = productImages[product.id];
-  drawImageWarped(ctx, pImg, tl, tr, br, bl, 1.0);
-
-  // ── Draw wrist occluder: if wrist is in front of garment area, blend it
-  // (Simulates arm going over the garment)
-  const wrists = [lw, rw].filter(Boolean);
-  wrists.forEach(wrist => {
-    const inGarmentArea =
-      wrist.x >= Math.min(tl.x, bl.x) && wrist.x <= Math.max(tr.x, br.x) &&
-      wrist.y >= tl.y && wrist.y <= bl.y;
-    if (inGarmentArea && wrist.v > 0.6) {
-      // Mask out a circle around the wrist so the arm shows through
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      const radius = sw * 0.10;
-      const grad = ctx.createRadialGradient(wrist.x, wrist.y, 0, wrist.x, wrist.y, radius);
-      grad.addColorStop(0,   'rgba(0,0,0,0.85)');
-      grad.addColorStop(0.6, 'rgba(0,0,0,0.40)');
-      grad.addColorStop(1,   'rgba(0,0,0,0.00)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(wrist.x, wrist.y, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  });
+  // ── Draw
+  ctx.save();
+  ctx.translate(garmentCenterX, garmentCenterY);
+  ctx.rotate(tiltAngle);
+  ctx.globalAlpha = 1.0;
+  ctx.drawImage(pImg, -garmentW / 2, -garmentH / 2, garmentW, garmentH);
+  ctx.restore();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -993,10 +790,6 @@ function selectProduct(id) {
     snapLabel.classList.add('show');
     setTimeout(() => snapLabel.classList.remove('show'), 1400);
   }
-
-  // Reset cloth physics on product change
-  clothState.velY    = 0;
-  clothState.offsetY = 0;
 
   // Reset smoother to avoid ghost positions
   smoothedLandmarks = null;
