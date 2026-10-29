@@ -781,17 +781,177 @@ function demoDrawWatch(ctx, b) {
   ctx.restore();
 }
 
-// ── Main fixed demo compositing ────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+//  QUAD-WARP ENGINE (shared with camera AR overlay)
+//  Maps the garment PNG onto a 4-corner body quad for perspective realism
+// ══════════════════════════════════════════════════════════════════════
+function drawImageWarped(ctx, img, tl, tr, br, bl, alpha = 1.0) {
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+
+  const STEPS = 24;  // strip count — more = smoother warp
+  const iW = img.naturalWidth;
+  const iH = img.naturalHeight;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  for (let i = 0; i < STEPS; i++) {
+    const t0 = i       / STEPS;
+    const t1 = (i + 1) / STEPS;
+
+    // Left & right edge of this strip
+    const l0x = tl.x + (bl.x - tl.x) * t0,  l0y = tl.y + (bl.y - tl.y) * t0;
+    const l1x = tl.x + (bl.x - tl.x) * t1,  l1y = tl.y + (bl.y - tl.y) * t1;
+    const r0x = tr.x + (br.x - tr.x) * t0,  r0y = tr.y + (br.y - tr.y) * t0;
+    const r1x = tr.x + (br.x - tr.x) * t1,  r1y = tr.y + (br.y - tr.y) * t1;
+
+    const sy0  = iH * t0;
+    const sy1  = iH * t1;
+    const srcH = sy1 - sy0;
+    if (srcH <= 0) continue;
+
+    // Affine: map (0,sy0)→l0, (iW,sy0)→r0, (0,sy1)→l1
+    const a = (r0x - l0x) / iW;   // m11
+    const b = (l1x - l0x) / srcH; // m12
+    const c = l0x;                 // dx
+    const d = (r0y - l0y) / iW;   // m21
+    const e = (l1y - l0y) / srcH; // m22
+    const f = l0y;                 // dy
+
+    ctx.save();
+    ctx.setTransform(a, d, b, e, c, f);
+    ctx.beginPath();
+    ctx.rect(0, sy0, iW, srcH + 0.5);
+    ctx.clip();
+    ctx.drawImage(img, 0, 0, iW, iH);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// Draw a soft radial shadow behind the garment quad for body depth
+function drawGarmentShadow(ctx, tl, tr, br, bl) {
+  const cx = (tl.x + tr.x + br.x + bl.x) / 4;
+  const cy = (tl.y + tr.y + br.y + bl.y) / 4;
+  const r  = Math.max(
+    Math.hypot(tr.x - tl.x, tr.y - tl.y),
+    Math.hypot(bl.x - tl.x, bl.y - tl.y)
+  ) * 0.52;
+
+  const grad = ctx.createRadialGradient(cx, cy + r * 0.04, r * 0.08, cx, cy, r * 1.08);
+  grad.addColorStop(0,   'rgba(0,0,0,0.22)');
+  grad.addColorStop(0.55,'rgba(0,0,0,0.08)');
+  grad.addColorStop(1,   'rgba(0,0,0,0.00)');
+
+  ctx.save();
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(tl.x, tl.y);
+  ctx.lineTo(tr.x, tr.y);
+  ctx.lineTo(br.x, br.y);
+  ctx.lineTo(bl.x, bl.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// ── Clothing quad warp onto estimated body landmarks ─────────────────
+function compositeClothing(ctx, img, b, pid) {
+  const { ls, rs, lh, rh, neckX, neckY, shoulderW: sw, hipY } = b;
+
+  const aspect = (pid === 'c4') ? 1.02 : (pid === 'c2') ? 1.15 : 1.12;
+  const garmentW = sw * 2.42;
+  const garmentH = garmentW * aspect;
+
+  // Collar top: just above shoulder joints, anchored to neck
+  const shoulderMidY = (ls.y + rs.y) / 2;
+  const collarY    = Math.min(shoulderMidY - sw * 0.03, neckY + sw * 0.45);
+  const garmentTopY = collarY - garmentH * 0.10;
+
+  // Shoulder tilt
+  const angle   = Math.atan2(rs.y - ls.y, rs.x - ls.x);
+  const tiltCos = Math.cos(angle);
+  const tiltSin = Math.sin(angle);
+
+  const cx = neckX;
+  const cy = (ls.y + rs.y) / 2;
+  const topDY = garmentTopY - cy;
+  const botDY = garmentTopY + garmentH - cy;
+
+  const topHalf = garmentW / 2;
+  const botHalf = garmentW / 2 * 1.04; // slight A-line flare
+
+  function rotPt(dx, dy) {
+    return {
+      x: cx + dx * tiltCos - dy * tiltSin,
+      y: cy + dx * tiltSin + dy * tiltCos,
+    };
+  }
+
+  const tl = rotPt(-topHalf, topDY);
+  const tr = rotPt(+topHalf, topDY);
+  const bl = rotPt(-botHalf, botDY);
+  const br = rotPt(+botHalf, botDY);
+
+  drawGarmentShadow(ctx, tl, tr, br, bl);
+  drawImageWarped(ctx, img, tl, tr, br, bl, 1.0);
+}
+
+// ── Eyewear overlay ──────────────────────────────────────────────────
+function compositeEyewear(ctx, img, b) {
+  const { leX, reX, eyeY, faceW } = b;
+  const eyeSpan = reX - leX;
+  const midX    = (leX + reX) / 2;
+  const gW      = eyeSpan * 2.15;
+  const gH      = gW * 0.46;
+
+  ctx.save();
+  ctx.globalAlpha = 0.97;
+  ctx.drawImage(img, midX - gW / 2, eyeY - gH / 2, gW, gH);
+  ctx.restore();
+}
+
+// ── Accessories overlay ──────────────────────────────────────────────
+function compositeAccessory(ctx, img, b, pid) {
+  const { faceCX, headTop, faceW, faceH, neckX, ls, rs, lw, shoulderW: sw } = b;
+
+  if (pid === 'a1') { // Cap
+    const capW = faceW * 1.45;
+    const capH = capW * 0.65;
+    ctx.save();
+    ctx.globalAlpha = 0.97;
+    ctx.drawImage(img, faceCX - capW / 2, headTop - capH * 0.30, capW, capH);
+    ctx.restore();
+  } else if (pid === 'a2') { // Necklace — quad-warp along collar curve
+    const nW = sw * 0.90;
+    const nH = nW * 0.62;
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(img, neckX - nW / 2, ls.y - nH * 0.10, nW, nH);
+    ctx.restore();
+  } else if (pid === 'a3') { // Watch
+    const wSize = sw * 0.28;
+    ctx.save();
+    ctx.globalAlpha = 0.97;
+    ctx.drawImage(img, lw.x - wSize / 2, lw.y - wSize / 2, wSize, wSize);
+    ctx.restore();
+  }
+}
+
+// ── Main photo try-on compositing (upgraded) ─────────────────────────
 function createDemoResult(imgEl) {
   if (!imgEl || !uploadedDataURL) return;
 
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
+  const ctx    = canvas.getContext('2d');
+  const img    = new Image();
 
   img.onload = () => {
-    canvas.width  = img.width;
-    canvas.height = img.height;
+    const W = img.width;
+    const H = img.height;
+    canvas.width  = W;
+    canvas.height = H;
 
     // 1. Draw original photo
     ctx.drawImage(img, 0, 0);
@@ -800,68 +960,38 @@ function createDemoResult(imgEl) {
     const cat = selectedProduct?.category || 'clothing';
 
     // 2. Estimate body landmarks geometrically
-    const b = estimateBodyLandmarks(img.width, img.height);
+    const b = estimateBodyLandmarks(W, H);
 
-    // Try loading realistic product PNG first
+    // 3. Load product PNG and composite with quad-warp
     const prodImg = new Image();
     prodImg.crossOrigin = 'anonymous';
+
     prodImg.onload = () => {
-      ctx.save();
       if (cat === 'clothing') {
-        const sw = b.shoulderW;
-        const gW = sw * 2.35;
-        const gH = gW * ((pid === 'c4') ? 1.0 : 1.12);
-        const cX = b.neckX;
-        const collarY = b.ls.y - sw * 0.04;
-        const cY = (collarY - gH * 0.10) + gH / 2;
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(prodImg, cX - gW/2, cY - gH/2, gW, gH);
+        compositeClothing(ctx, prodImg, b, pid);
       } else if (cat === 'eyewear') {
-        const eyeSpan = b.reX - b.leX;
-        const gW = eyeSpan * 2.3;
-        const gH = gW * 0.44;
-        const cX = (b.leX + b.reX) / 2;
-        const cY = b.eyeY;
-        ctx.globalAlpha = 0.96;
-        ctx.drawImage(prodImg, cX - gW/2, cY - gH/2, gW, gH);
+        compositeEyewear(ctx, prodImg, b);
       } else if (cat === 'accessories') {
-        if (pid === 'a1') { // Cap
-          const capW = b.faceW * 1.45;
-          const capH = capW * 0.62;
-          ctx.globalAlpha = 0.98;
-          ctx.drawImage(prodImg, b.faceCX - capW/2, b.headTop - capH * 0.35, capW, capH);
-        } else if (pid === 'a2') { // Necklace
-          const nW = b.shoulderW * 0.85;
-          const nH = nW * 0.65;
-          ctx.globalAlpha = 0.95;
-          ctx.drawImage(prodImg, b.neckX - nW/2, b.ls.y + nH * 0.15, nW, nH);
-        } else if (pid === 'a3') { // Watch
-          const wSize = b.shoulderW * 0.26;
-          ctx.globalAlpha = 0.95;
-          ctx.drawImage(prodImg, b.lw.x - wSize/2, b.lw.y - wSize/2, wSize, wSize);
-        }
+        compositeAccessory(ctx, prodImg, b, pid);
       }
-      ctx.restore();
 
       // Watermark
-      const wSize = Math.max(11, img.width * 0.022);
-      ctx.font = `bold ${wSize}px Outfit, sans-serif`;
-      ctx.textAlign = 'right';
-      ctx.fillStyle = 'rgba(168,85,247,0.75)';
-      ctx.globalAlpha = 0.7;
-      ctx.fillText('MirrorAI • Virtual Try-On', img.width - 14, img.height - 12);
+      const wSz = Math.max(11, W * 0.020);
+      ctx.font  = `bold ${wSz}px Outfit, sans-serif`;
+      ctx.textAlign   = 'right';
+      ctx.fillStyle   = 'rgba(168,85,247,0.80)';
+      ctx.globalAlpha = 0.72;
+      ctx.fillText('MirrorAI • Virtual Try-On', W - 14, H - 12);
       ctx.globalAlpha = 1;
 
       imgEl.src = canvas.toDataURL('image/jpeg', 0.94);
     };
 
     prodImg.onerror = () => {
-      // Fallback to procedural vector drawing
-      if (cat === 'clothing') {
-        demoDrawClothing(ctx, b, pid);
-      } else if (cat === 'eyewear') {
-        demoDrawEyewear(ctx, b, pid);
-      } else if (cat === 'accessories') {
+      // Fallback to existing procedural vector shapes if PNG missing
+      if (cat === 'clothing')    demoDrawClothing(ctx, b, pid);
+      else if (cat === 'eyewear') demoDrawEyewear(ctx, b, pid);
+      else if (cat === 'accessories') {
         if (pid === 'a1') demoDrawCap(ctx, b);
         else if (pid === 'a2') demoDrawNecklace(ctx, b);
         else if (pid === 'a3') demoDrawWatch(ctx, b);

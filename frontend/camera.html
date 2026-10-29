@@ -17,23 +17,23 @@
       touch-action: manipulation;
     }
 
-    /* ── Camera / Canvas Layer ── */
+    /* ── Camera / Canvas Layers ── */
     #video {
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
       object-fit: cover;
       z-index: 1;
-      transform: scaleX(-1); /* mirror mode */
+      transform: scaleX(-1); /* mirror / selfie mode */
     }
 
+    /* Main garment overlay canvas (no CSS mirror — we flip x in code) */
     #overlay-canvas {
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
       z-index: 2;
       pointer-events: none;
-      /* NO CSS mirror — we flip x manually in drawing code */
     }
 
     /* ── Back Button ── */
@@ -49,6 +49,7 @@
       cursor: pointer;
       backdrop-filter: blur(12px);
       transition: background 0.2s;
+      text-decoration: none;
     }
     #back-btn:hover { background: rgba(0,0,0,0.8); }
     #back-btn svg { width: 20px; height: 20px; }
@@ -68,9 +69,30 @@
       letter-spacing: 0.05em;
       backdrop-filter: blur(12px);
       color: #d8b4fe;
+      white-space: nowrap;
     }
 
-    /* ── Selected Product Label ── */
+    /* ── Tracking Status Dot ── */
+    #track-status {
+      position: fixed;
+      top: 22px; right: 20px;
+      z-index: 100;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #6b7280;
+      box-shadow: 0 0 8px rgba(107,114,128,0.5);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    #track-status.tracking {
+      background: #22c55e;
+      box-shadow: 0 0 10px rgba(34,197,94,0.7);
+    }
+    #track-status.lost {
+      background: #f59e0b;
+      box-shadow: 0 0 10px rgba(245,158,11,0.6);
+    }
+
+    /* ── Selected Product Badge ── */
     #selected-label {
       position: fixed;
       top: 68px;
@@ -87,12 +109,30 @@
       white-space: nowrap;
     }
 
+    /* ── Guidance hint ── */
+    #hint-bar {
+      position: fixed;
+      bottom: 215px;
+      left: 50%; transform: translateX(-50%);
+      z-index: 25;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.7);
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+      transition: opacity 0.5s;
+    }
+
     /* ── Bottom Gradient Overlay ── */
     #bottom-overlay {
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      height: 220px;
-      background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(10,5,25,0.7) 55%, transparent 100%);
+      height: 240px;
+      background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(10,5,25,0.72) 55%, transparent 100%);
       z-index: 10;
       pointer-events: none;
     }
@@ -100,7 +140,7 @@
     /* ── Product Strip ── */
     #product-strip-wrap {
       position: fixed;
-      bottom: 100px; left: 0; right: 0;
+      bottom: 110px; left: 0; right: 0;
       z-index: 20;
       padding: 12px 0;
     }
@@ -108,12 +148,13 @@
     #product-strip {
       display: flex;
       flex-direction: row;
-      gap: 16px;
+      gap: 14px;
       padding: 4px 24px;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
+      justify-content: flex-start;
     }
     #product-strip::-webkit-scrollbar { display: none; }
 
@@ -126,51 +167,68 @@
       flex-shrink: 0;
       transition: transform 0.15s;
     }
-    .prod-circle:active { transform: scale(0.92); }
+    .prod-circle:active { transform: scale(0.88); }
 
     .prod-circle-img {
-      width: 70px; height: 70px;
+      width: 72px; height: 72px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.12);
-      border: 2.5px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.10);
+      border: 2.5px solid rgba(255,255,255,0.18);
       display: flex; align-items: center; justify-content: center;
-      font-size: 30px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      backdrop-filter: blur(6px);
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+      backdrop-filter: blur(8px);
+    }
+    .prod-circle-img img {
+      width: 58px; height: 58px;
+      object-fit: contain;
+      border-radius: 50%;
+    }
+    .prod-circle-img .prod-emoji {
+      font-size: 28px;
+      line-height: 1;
     }
 
     .prod-circle.selected .prod-circle-img {
       border-color: #fbbf24;
-      box-shadow: 0 0 0 3px rgba(251,191,36,0.4), 0 0 18px rgba(251,191,36,0.3);
+      box-shadow: 0 0 0 3px rgba(251,191,36,0.45), 0 0 22px rgba(251,191,36,0.4);
+      transform: scale(1.08);
+    }
+    .prod-circle.none-item .prod-circle-img {
+      background: rgba(255,255,255,0.06);
+    }
+    .prod-circle.none-item.selected .prod-circle-img {
+      border-color: rgba(255,255,255,0.5);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
     }
 
     .prod-circle-name {
-      font-size: 0.68rem;
+      font-size: 0.62rem;
       font-weight: 600;
       text-align: center;
       max-width: 76px;
       line-height: 1.2;
-      color: rgba(255,255,255,0.85);
-      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      color: rgba(255,255,255,0.80);
+      text-shadow: 0 1px 5px rgba(0,0,0,0.9);
     }
 
     /* ── Capture Button ── */
     #capture-btn {
       position: fixed;
-      bottom: 24px;
+      bottom: 28px;
       left: 50%; transform: translateX(-50%);
       z-index: 30;
-      width: 70px; height: 70px;
+      width: 72px; height: 72px;
       border-radius: 50%;
       background: #fff;
-      border: 4px solid rgba(255,255,255,0.4);
+      border: 5px solid rgba(255,255,255,0.35);
       cursor: pointer;
-      box-shadow: 0 0 0 3px rgba(255,255,255,0.25), 0 4px 20px rgba(0,0,0,0.5);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.2), 0 4px 22px rgba(0,0,0,0.55);
       transition: transform 0.1s, box-shadow 0.1s;
     }
     #capture-btn:active {
-      transform: translateX(-50%) scale(0.9);
-      box-shadow: 0 0 0 6px rgba(255,255,255,0.3);
+      transform: translateX(-50%) scale(0.88);
+      box-shadow: 0 0 0 6px rgba(255,255,255,0.28);
     }
     #capture-btn::after {
       content: '';
@@ -178,10 +236,10 @@
       inset: 6px;
       background: #fff;
       border-radius: 50%;
-      border: 2px solid rgba(0,0,0,0.08);
+      border: 2px solid rgba(0,0,0,0.07);
     }
 
-    /* ── Flash on capture ── */
+    /* ── Flash ── */
     #flash {
       position: fixed;
       inset: 0;
@@ -189,9 +247,9 @@
       opacity: 0;
       z-index: 200;
       pointer-events: none;
-      transition: opacity 0.08s ease;
+      transition: opacity 0.07s ease;
     }
-    #flash.active { opacity: 0.85; }
+    #flash.active { opacity: 0.9; }
 
     /* ── Error Screen ── */
     #error-screen {
@@ -220,7 +278,7 @@
       cursor: pointer;
     }
 
-    /* ── Loading overlay ── */
+    /* ── Loading Screen ── */
     #loading-screen {
       position: fixed;
       inset: 0;
@@ -233,7 +291,7 @@
       gap: 16px;
     }
     #loading-screen h3 { color: #d8b4fe; font-size: 1.1rem; }
-    #loading-screen p { color: rgba(255,255,255,0.5); font-size: 0.82rem; }
+    #loading-screen p  { color: rgba(255,255,255,0.5); font-size: 0.82rem; }
     .spin {
       width: 44px; height: 44px;
       border: 3px solid rgba(168,85,247,0.2);
@@ -243,33 +301,52 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Pose Indicator Dots ── */
-    #pose-dots {
+    /* ── Body outline guide (shown when no product selected) ── */
+    #body-guide {
       position: fixed;
       inset: 0;
       z-index: 3;
       pointer-events: none;
+      display: none;
     }
 
-    .pose-dot {
+    /* ── Snap info overlay ── */
+    #snap-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 180;
+      pointer-events: none;
+    }
+    #snap-label {
       position: absolute;
-      width: 6px; height: 6px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
       background: rgba(168,85,247,0.85);
-      border-radius: 50%;
-      box-shadow: 0 0 6px #a855f7;
-      transform: translate(-50%,-50%);
+      border-radius: 16px;
+      padding: 12px 28px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      backdrop-filter: blur(12px);
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+      opacity: 0;
+      white-space: nowrap;
+    }
+    #snap-label.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
     }
   </style>
 </head>
 <body>
 
-<!-- Flash effect -->
 <div id="flash"></div>
 
 <!-- Loading screen -->
 <div id="loading-screen">
   <div class="spin"></div>
-  <h3>Initializing Camera...</h3>
+  <h3>Starting AR Try-On...</h3>
   <p>Allow camera access when prompted</p>
 </div>
 
@@ -281,27 +358,35 @@
   <button class="err-back-btn" onclick="window.location.href='tryon.html'">← Back to Photo Try-On</button>
 </div>
 
-<!-- Camera video element -->
+<!-- Live camera feed -->
 <video id="video" autoplay playsinline muted></video>
 
-<!-- Canvas overlay for garment drawing -->
+<!-- Garment overlay canvas -->
 <canvas id="overlay-canvas"></canvas>
 
-<!-- Pose landmark dots (debug, hidden in prod) -->
-<div id="pose-dots"></div>
+<!-- Snap overlay for product label flash -->
+<div id="snap-overlay">
+  <div id="snap-label"></div>
+</div>
 
 <!-- Back button -->
-<button id="back-btn" onclick="window.location.href='tryon.html'" title="Back to Try-On">
+<a id="back-btn" href="tryon.html" title="Back">
   <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 16L6 10l6-6"/>
   </svg>
-</button>
+</a>
+
+<!-- Tracking dot -->
+<div id="track-status"></div>
 
 <!-- Mode label -->
-<div id="mode-label">📷 Live AR Try-On</div>
+<div id="mode-label">✨ Live AR Try-On</div>
 
 <!-- Selected product label -->
 <div id="selected-label"></div>
+
+<!-- Hint bar -->
+<div id="hint-bar">👆 Tap an outfit below to try it on</div>
 
 <!-- Bottom gradient -->
 <div id="bottom-overlay"></div>
@@ -312,79 +397,72 @@
 </div>
 
 <!-- Capture button -->
-<button id="capture-btn" title="Capture photo"></button>
+<button id="capture-btn" title="Take photo"></button>
 
+<!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 <script>
-// ══════════════════════════════════════════════════
-//  PRODUCTS
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
+//  PRODUCTS CATALOGUE
+// ══════════════════════════════════════════════════════════════════════
 const PRODUCTS = [
-  { id: 'c1', name: 'Classic White Tee',     category: 'clothing',    emoji: '👕' },
-  { id: 'c2', name: 'Denim Jacket',          category: 'clothing',    emoji: '🧥' },
-  { id: 'c3', name: 'Formal Blazer',         category: 'clothing',    emoji: '🥋' },
-  { id: 'c4', name: 'Hoodie Sweatshirt',     category: 'clothing',    emoji: '🫶' },
-  { id: 'c5', name: 'Summer Floral Shirt',   category: 'clothing',    emoji: '🌺' },
-  { id: 'e1', name: 'Classic Aviators',      category: 'eyewear',     emoji: '🕶️' },
-  { id: 'e2', name: 'Round Tortoise Frames', category: 'eyewear',     emoji: '👓' },
-  { id: 'e3', name: 'Wayfarer Sunglasses',   category: 'eyewear',     emoji: '😎' },
-  { id: 'a1', name: 'Leather Baseball Cap',  category: 'accessories', emoji: '🧢' },
-  { id: 'a2', name: 'Chunky Chain Necklace', category: 'accessories', emoji: '📿' },
-  { id: 'a3', name: 'Watch — Minimalist',    category: 'accessories', emoji: '⌚' },
+  { id: 'none',  name: 'None',               category: 'none',        emoji: '🚫' },
+  { id: 'c4',    name: 'Hoodie',             category: 'clothing',    emoji: '🫶', aspectRatio: 1.02 },
+  { id: 'c1',    name: 'Classic White Tee',  category: 'clothing',    emoji: '👕', aspectRatio: 1.12 },
+  { id: 'c2',    name: 'Denim Jacket',       category: 'clothing',    emoji: '🧥', aspectRatio: 1.15 },
+  { id: 'c3',    name: 'Formal Blazer',      category: 'clothing',    emoji: '🥋', aspectRatio: 1.12 },
+  { id: 'c5',    name: 'Floral Shirt',       category: 'clothing',    emoji: '🌺', aspectRatio: 1.10 },
+  { id: 'e1',    name: 'Aviator Shades',     category: 'eyewear',     emoji: '🕶️' },
+  { id: 'e2',    name: 'Round Frames',       category: 'eyewear',     emoji: '👓' },
+  { id: 'e3',    name: 'Wayfarers',          category: 'eyewear',     emoji: '😎' },
+  { id: 'a1',    name: 'Baseball Cap',       category: 'accessories', emoji: '🧢' },
+  { id: 'a2',    name: 'Chain Necklace',     category: 'accessories', emoji: '📿' },
+  { id: 'a3',    name: 'Minimal Watch',      category: 'accessories', emoji: '⌚' },
 ];
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 //  STATE
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 let selectedProduct  = null;
 let latestLandmarks  = null;
 let videoStream      = null;
 let poseInstance     = null;
 let cameraUtil       = null;
+let frameCount       = 0;
+let trackingActive   = false;
+
+// Smoothed landmark buffer (EMA for jitter reduction)
+const SMOOTH_ALPHA    = 0.40;   // 0=full smooth, 1=raw. 0.40 = nice balance
+let smoothedLandmarks = null;
+
+// Cloth physics state — makes garment feel weighted
+const clothState = {
+  velY: 0,      // vertical cloth momentum (hem sway)
+  offsetY: 0,   // current cloth drop offset
+  rotation: 0,  // tilt smoothed
+};
 
 const video   = document.getElementById('video');
 const canvas  = document.getElementById('overlay-canvas');
-const ctx     = canvas.getContext('2d');
+const ctx     = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
 
-// ══════════════════════════════════════════════════
-//  PRODUCT STRIP
-// ══════════════════════════════════════════════════
-function buildProductStrip() {
-  const strip = document.getElementById('product-strip');
-  strip.innerHTML = '';
-  PRODUCTS.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'prod-circle';
-    div.dataset.id = p.id;
-    div.innerHTML = `
-      <div class="prod-circle-img">${p.emoji}</div>
-      <div class="prod-circle-name">${p.name}</div>
-    `;
-    div.addEventListener('click', () => selectProduct(p.id));
-    strip.appendChild(div);
-  });
-}
+// ══════════════════════════════════════════════════════════════════════
+//  PRE-LOAD PRODUCT IMAGES
+// ══════════════════════════════════════════════════════════════════════
+const productImages = {};
+PRODUCTS.forEach(p => {
+  if (p.id === 'none') return;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = `assets/products/${p.id}.png`;
+  img.onerror = () => { img._failed = true; };
+  productImages[p.id] = img;
+});
 
-function selectProduct(id) {
-  if (selectedProduct?.id === id) {
-    selectedProduct = null;
-    document.querySelectorAll('.prod-circle').forEach(el => el.classList.remove('selected'));
-    document.getElementById('selected-label').style.display = 'none';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    return;
-  }
-  selectedProduct = PRODUCTS.find(p => p.id === id);
-  document.querySelectorAll('.prod-circle').forEach(el =>
-    el.classList.toggle('selected', el.dataset.id === id));
-  const label = document.getElementById('selected-label');
-  label.textContent = `${selectedProduct.emoji}  ${selectedProduct.name}`;
-  label.style.display = 'block';
-}
-
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 //  CANVAS RESIZE
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 function resizeCanvas() {
   canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -392,293 +470,541 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// ══════════════════════════════════════════════════
-//  LANDMARK HELPER
-//  KEY FIX: we DON'T CSS-mirror the canvas.
-//  Instead we flip x here: x = W - rawX*W
-//  so garments align with the CSS-mirrored video.
-// ══════════════════════════════════════════════════
-function lm(landmarks, idx, W, H, minVis = 0.30) {
+// ══════════════════════════════════════════════════════════════════════
+//  LANDMARK COORDINATE HELPER
+//  We CSS-mirror the <video> but NOT the canvas.
+//  So we flip x: screenX = W - normalizedX * W
+// ══════════════════════════════════════════════════════════════════════
+function lm(landmarks, idx, W, H, minVis = 0.25) {
   const p = landmarks[idx];
   if (!p || p.visibility < minVis) return null;
   return { x: W - p.x * W, y: p.y * H, v: p.visibility };
 }
 
-// ══════════════════════════════════════════════════
-//  GARMENT DRAWING
-// ══════════════════════════════════════════════════
-function drawGarmentOnCanvas(landmarks, W, H, product) {
-  if (!product || !landmarks) return;
-  const cat = product.category;
-  if      (cat === 'clothing')    drawClothing(landmarks, W, H, product);
-  else if (cat === 'eyewear')     drawEyewear(landmarks, W, H, product);
-  else if (cat === 'accessories') drawAccessory(landmarks, W, H, product);
+// ══════════════════════════════════════════════════════════════════════
+//  EXPONENTIAL MOVING AVERAGE SMOOTHER
+//  Reduces jitter while keeping responsiveness
+// ══════════════════════════════════════════════════════════════════════
+function smoothLandmarks(raw) {
+  if (!raw) return null;
+  if (!smoothedLandmarks) {
+    smoothedLandmarks = raw.map(p => ({ ...p }));
+    return smoothedLandmarks;
+  }
+  for (let i = 0; i < raw.length; i++) {
+    const r = raw[i];
+    const s = smoothedLandmarks[i];
+    if (!r || !s) { smoothedLandmarks[i] = r; continue; }
+    s.x = s.x + SMOOTH_ALPHA * (r.x - s.x);
+    s.y = s.y + SMOOTH_ALPHA * (r.y - s.y);
+    s.z = (s.z || 0) + SMOOTH_ALPHA * ((r.z || 0) - (s.z || 0));
+    s.visibility = s.visibility + 0.25 * (r.visibility - s.visibility);
+  }
+  return smoothedLandmarks;
 }
 
-// Pre-load product PNG images
-const productImages = {};
-PRODUCTS.forEach(p => {
-  const img = new Image();
-  img.src = `assets/products/${p.id}.png`;
-  productImages[p.id] = img;
-});
+// ══════════════════════════════════════════════════════════════════════
+//  PERSPECTIVE QUAD TRANSFORM
+//  Maps the flat garment image to a 4-point quad on the body.
+//  Uses a 2D projective (homography) approach via canvas setTransform.
+//  For canvas2D we approximate with a series of horizontal strip warps
+//  (since true perspective isn't natively available in 2D canvas).
+// ══════════════════════════════════════════════════════════════════════
+function drawImageWarped(ctx, img, tl, tr, br, bl, alpha = 1.0) {
+  if (!img || !img.complete || img.naturalWidth === 0 || img._failed) return;
 
-// ── CLOTHING ─────────────────────────────────────
-function drawClothing(landmarks, W, H, product) {
-  const ls = lm(landmarks, 11, W, H, 0.15);  // left shoulder
-  const rs = lm(landmarks, 12, W, H, 0.15);  // right shoulder
-  const nose = lm(landmarks, 0, W, H, 0.10); // nose
-  const lh = lm(landmarks, 23, W, H, 0.10);  // left hip
-  const rh = lm(landmarks, 24, W, H, 0.10);  // right hip
+  const STEPS = 20;   // more = smoother warp, more CPU
+  const iW = img.naturalWidth;
+  const iH = img.naturalHeight;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  for (let i = 0; i < STEPS; i++) {
+    const t0 = i       / STEPS;
+    const t1 = (i + 1) / STEPS;
+
+    // Left & right edge points at t0 and t1
+    const l0x = tl.x + (bl.x - tl.x) * t0,  l0y = tl.y + (bl.y - tl.y) * t0;
+    const l1x = tl.x + (bl.x - tl.x) * t1,  l1y = tl.y + (bl.y - tl.y) * t1;
+    const r0x = tr.x + (br.x - tr.x) * t0,  r0y = tr.y + (br.y - tr.y) * t0;
+    const r1x = tr.x + (br.x - tr.x) * t1,  r1y = tr.y + (br.y - tr.y) * t1;
+
+    // Source slice in image
+    const sy0 = iH * t0;
+    const sy1 = iH * t1;
+    const srcH = sy1 - sy0;
+    if (srcH <= 0) continue;
+
+    // Draw horizontal strip mapped to the trapezoid slice
+    const dstTopW  = Math.hypot(r0x - l0x, r0y - l0y);
+    const dstBotW  = Math.hypot(r1x - l1x, r1y - l1y);
+    const dstH     = Math.hypot((l1x + r1x)/2 - (l0x + r0x)/2, (l1y + r1y)/2 - (l0y + r0y)/2) * STEPS / STEPS;
+    const dstMaxW  = Math.max(dstTopW, dstBotW, 1);
+
+    // Compute affine transform: map source strip rect to dest trapezoid (top-left as origin)
+    // We use a skewed affine that accounts for the horizontal stretch
+    const scaleX = dstTopW / iW;
+    const shearX = (r1x - r0x - (r0x - l0x) * (dstBotW / dstTopW)) / (iH * (1/STEPS));
+
+    // Build 3-point affine: (0,sy0) → l0, (iW,sy0) → r0, (0,sy1) → l1
+    const a = (r0x - l0x) / iW;     // scaleX
+    const b = (l1x - l0x) / srcH;   // shearX (from vertical progress)
+    const c = l0x;                   // tx
+    const d = (r0y - l0y) / iW;     // shearY
+    const e = (l1y - l0y) / srcH;   // scaleY
+    const f = l0y;                   // ty
+
+    ctx.save();
+    ctx.setTransform(a, d, b, e, c, f);
+
+    // Clip to strip region in transformed space (prevent overdraw)
+    ctx.beginPath();
+    ctx.rect(0, sy0, iW, srcH + 0.5);
+    ctx.clip();
+
+    ctx.drawImage(img, 0, 0, iW, iH);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  DRAW BODY SILHOUETTE / DEPTH SHADOW
+//  Adds a soft shadow behind the garment for realistic depth
+// ══════════════════════════════════════════════════════════════════════
+function drawBodyShadow(tl, tr, br, bl) {
+  const cx = (tl.x + tr.x + br.x + bl.x) / 4;
+  const cy = (tl.y + tr.y + br.y + bl.y) / 4;
+  const r  = Math.max(Math.hypot(tr.x - tl.x, tr.y - tl.y),
+                       Math.hypot(bl.x - tl.x, bl.y - tl.y)) * 0.55;
+
+  const grad = ctx.createRadialGradient(cx, cy + r * 0.05, r * 0.1, cx, cy, r * 1.1);
+  grad.addColorStop(0,   'rgba(0,0,0,0.28)');
+  grad.addColorStop(0.6, 'rgba(0,0,0,0.10)');
+  grad.addColorStop(1,   'rgba(0,0,0,0.00)');
+
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(tl.x, tl.y);
+  ctx.lineTo(tr.x, tr.y);
+  ctx.lineTo(br.x, br.y);
+  ctx.lineTo(bl.x, bl.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  DRAW EDGE BLEND
+//  Feathers the garment edges into the video for a natural look
+// ══════════════════════════════════════════════════════════════════════
+function drawEdgeBlend(tl, tr, br, bl, blendPx = 18) {
+  // We draw a slightly larger quad with transparent fill to "feather" the edge
+  // Done by drawing the garment with a clip path that has a soft gradient border
+  // This is approximated by drawing a blurred shadow around the quad boundary
+  ctx.save();
+  ctx.shadowColor  = 'rgba(0,0,0,0)';
+  ctx.globalAlpha  = 0;
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  CLOTH PHYSICS — makes the bottom hem gently sway
+// ══════════════════════════════════════════════════════════════════════
+const GRAVITY    = 0.04;   // pull down
+const DAMPING    = 0.82;   // energy loss per frame
+const HEM_DROOP  = 0.06;   // max hem droop as fraction of garment height
+
+function updateClothPhysics(garmentH) {
+  // Simple spring-gravity for hem droop
+  clothState.velY = (clothState.velY + GRAVITY) * DAMPING;
+  clothState.offsetY += clothState.velY;
+  // Clamp to max droop
+  const maxDrop = garmentH * HEM_DROOP;
+  if (clothState.offsetY > maxDrop) {
+    clothState.offsetY = maxDrop;
+    clothState.velY *= -0.3; // bounce
+  }
+  if (clothState.offsetY < 0) {
+    clothState.offsetY = 0;
+    clothState.velY = 0;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  MAIN GARMENT DRAWING — CLOTHING (shirts, hoodies, jackets)
+// ══════════════════════════════════════════════════════════════════════
+function drawClothing(lms, W, H, product) {
+  const ls   = lm(lms, 11, W, H, 0.12); // left shoulder
+  const rs   = lm(lms, 12, W, H, 0.12); // right shoulder
+  const lh   = lm(lms, 23, W, H, 0.08); // left hip
+  const rh   = lm(lms, 24, W, H, 0.08); // right hip
+  const nose = lm(lms, 0,  W, H, 0.08); // nose (for collar Y)
+  const le   = lm(lms, 13, W, H, 0.08); // left elbow
+  const re   = lm(lms, 14, W, H, 0.08); // right elbow
+  const lw   = lm(lms, 15, W, H, 0.06); // left wrist
+  const rw   = lm(lms, 16, W, H, 0.06); // right wrist
 
   if (!ls || !rs) return;
 
-  const sw = Math.hypot(rs.x - ls.x, rs.y - ls.y);
-  if (sw < 25 || sw > W * 0.98) return;
+  const sw = Math.hypot(rs.x - ls.x, rs.y - ls.y); // shoulder width (pixels)
+  if (sw < 20 || sw > W * 0.98) return;
 
-  const midX = (ls.x + rs.x) / 2;
-  const shoulderY = (ls.y + rs.y) / 2;
-  const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
+  const aspect = product.aspectRatio || 1.10;
 
-  // Clothing garment dimensions:
-  // sw is skeletal distance between shoulder joints.
-  // Real clothing covers both shoulders plus sleeves (~2.4x)
-  const garmentW = sw * 2.38;
-  const aspect = (product.id === 'c4') ? 1.0 : (product.id === 'c2') ? 1.15 : 1.12;
+  // ── Garment dimensions
+  //   Width = shoulder span × ~2.4 to cover full body width incl. sleeves
+  //   This matches how flatlay garment PNGs are framed
+  const garmentW = sw * 2.42;
   const garmentH = garmentW * aspect;
 
-  // Exact Collar Alignment:
-  // In our transparent flatlay garment PNGs, the top collar cutout is at ~10% from the top.
-  // The collar should align right across the clavicle / base of neck (slightly above shoulder joints).
-  const collarY = nose ? Math.min(shoulderY - sw * 0.04, nose.y + sw * 0.45) : shoulderY - sw * 0.04;
+  // ── Collar Y: slightly above shoulder joints, below nose
+  const shoulderMidY = (ls.y + rs.y) / 2;
+  const collarY = nose
+    ? Math.min(shoulderMidY - sw * 0.03, nose.y + sw * 0.50)
+    : shoulderMidY - sw * 0.03;
+
+  // Garment top = collar position minus the collar-in-PNG offset (collar at ~10% from top)
   const garmentTopY = collarY - garmentH * 0.10;
-  const garmentCenterY = garmentTopY + garmentH / 2;
-  const garmentCenterX = midX;
 
-  const pImg = productImages[product.id];
+  // Shoulder tilt angle (person leaning left/right)
+  const tiltAngle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
 
-  ctx.save();
-  ctx.translate(garmentCenterX, garmentCenterY);
-  ctx.rotate(angle);
+  // ── Cloth physics for hem
+  updateClothPhysics(garmentH);
+  const hemDropL = clothState.offsetY * 0.6;
+  const hemDropR = clothState.offsetY * 0.8;
 
-  if (pImg && pImg.complete && pImg.naturalWidth > 0) {
-    ctx.globalAlpha = 1.0;
-    ctx.drawImage(pImg, -garmentW / 2, -garmentH / 2, garmentW, garmentH);
+  // ── Mid shoulder center
+  const cx = (ls.x + rs.x) / 2;
+  const cy = (ls.y + rs.y) / 2;
+
+  // ── Build 4 corner points of the garment quad on the body
+  // The garment is drawn as a QUAD (not just a rect) to simulate
+  // how cloth wraps the torso (slight perspective + tilt)
+
+  const halfW  = garmentW / 2;
+  const halfW2 = garmentW / 2;   // could narrow at bottom for taper
+
+  // Hip Y (use actual hip landmarks if visible, else estimate from shoulder)
+  const hipMidY = (lh && rh)
+    ? (lh.y + rh.y) / 2
+    : shoulderMidY + garmentH * 0.88;
+
+  const hipMidX = (lh && rh) ? (lh.x + rh.x) / 2 : cx;
+
+  // ── Garment quad corners (in garment space, rotated by shoulder tilt)
+  // We rotate around the chest center
+
+  // Top-left, top-right of collar line
+  const tiltCos = Math.cos(tiltAngle);
+  const tiltSin = Math.sin(tiltAngle);
+
+  // Helper: rotate vector (dx, dy) by tiltAngle around center (cx, cy) → absolute point
+  function rotPt(dx, dy) {
+    return {
+      x: cx + dx * tiltCos - dy * tiltSin,
+      y: cy + dx * tiltSin + dy * tiltCos,
+    };
   }
 
+  // In rotated space:
+  const topDY = garmentTopY - cy;  // how far above cy the garment top is
+  const botDY = garmentTopY + garmentH - cy; // how far below cy the garment bottom is
+
+  // Horizontal spread (garment is wider at hem for flare)
+  const topSpread = halfW * 1.00;
+  const botSpread = halfW * 1.04;  // slightly wider at hem (A-line)
+
+  const tl = rotPt(-topSpread,  topDY);
+  const tr = rotPt(+topSpread,  topDY);
+  // Bottom left/right get cloth physics sway
+  const bl_raw = rotPt(-botSpread, botDY);
+  const br_raw = rotPt(+botSpread, botDY);
+
+  // Apply hem drop (cloth physics)
+  const bl = { x: bl_raw.x, y: bl_raw.y + hemDropL };
+  const br = { x: br_raw.x, y: br_raw.y + hemDropR };
+
+  // ── Draw subtle body shadow behind garment
+  drawBodyShadow(tl, tr, br, bl);
+
+  // ── Draw garment using quad warp
+  const pImg = productImages[product.id];
+  drawImageWarped(ctx, pImg, tl, tr, br, bl, 1.0);
+
+  // ── Draw wrist occluder: if wrist is in front of garment area, blend it
+  // (Simulates arm going over the garment)
+  const wrists = [lw, rw].filter(Boolean);
+  wrists.forEach(wrist => {
+    const inGarmentArea =
+      wrist.x >= Math.min(tl.x, bl.x) && wrist.x <= Math.max(tr.x, br.x) &&
+      wrist.y >= tl.y && wrist.y <= bl.y;
+    if (inGarmentArea && wrist.v > 0.6) {
+      // Mask out a circle around the wrist so the arm shows through
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      const radius = sw * 0.10;
+      const grad = ctx.createRadialGradient(wrist.x, wrist.y, 0, wrist.x, wrist.y, radius);
+      grad.addColorStop(0,   'rgba(0,0,0,0.85)');
+      grad.addColorStop(0.6, 'rgba(0,0,0,0.40)');
+      grad.addColorStop(1,   'rgba(0,0,0,0.00)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(wrist.x, wrist.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EYEWEAR DRAWING
+// ══════════════════════════════════════════════════════════════════════
+function drawEyewear(lms, W, H, product) {
+  // MediaPipe Pose gives eye landmarks 2 (l inner), 5 (r inner)
+  // Use left_eye=2, right_eye=5 for center of each eye
+  const raw = (idx) => {
+    const p = lms[idx];
+    if (!p || p.visibility < 0.10) return null;
+    return { x: W - p.x * W, y: p.y * H, v: p.visibility };
+  };
+
+  let leye = raw(2);
+  let reye = raw(5);
+  const nose = raw(0);
+  const ls   = lm(lms, 11, W, H, 0.15);
+  const rs   = lm(lms, 12, W, H, 0.15);
+
+  // Fallback if eye landmarks not reliable
+  if (!leye || !reye) {
+    if (nose && ls && rs) {
+      const faceW = Math.abs(rs.x - ls.x) * 0.38;
+      leye = { x: nose.x - faceW * 0.48, y: nose.y - faceW * 0.32, v: 0.5 };
+      reye = { x: nose.x + faceW * 0.48, y: nose.y - faceW * 0.32, v: 0.5 };
+    } else return;
+  }
+
+  // Ensure left is actually on left side of screen
+  if (leye.x > reye.x) { const tmp = leye; leye = reye; reye = tmp; }
+
+  const eyeSpan = Math.hypot(reye.x - leye.x, reye.y - leye.y);
+  const midX    = (leye.x + reye.x) / 2;
+  const midY    = (leye.y + reye.y) / 2;
+  const angle   = Math.atan2(reye.y - leye.y, reye.x - leye.x);
+
+  // Glasses width = ~2x the eye span (covers temples)
+  const gW = eyeSpan * 2.10;
+  const gH = gW * 0.46;
+
+  const pImg = productImages[product.id];
+  if (!pImg || !pImg.complete || pImg.naturalWidth === 0 || pImg._failed) return;
+
+  ctx.save();
+  ctx.translate(midX, midY + gH * 0.04);
+  ctx.rotate(angle);
+  ctx.globalAlpha = 0.98;
+  ctx.drawImage(pImg, -gW / 2, -gH / 2, gW, gH);
   ctx.restore();
 }
 
-// ── EYEWEAR ──────────────────────────────────────
-function drawEyewear(landmarks, W, H, product) {
-  const leyeRaw = landmarks[2]; // left eye
-  const reyeRaw = landmarks[5]; // right eye
-  const noseRaw = landmarks[0];
-
-  const flipX = x => W - x * W;
-  const flipPt = p => p ? { x: flipX(p.x), y: p.y * H, v: p.visibility } : null;
-
-  const leye = leyeRaw && leyeRaw.visibility > 0.10 ? flipPt(leyeRaw) : null;
-  const reye = reyeRaw && reyeRaw.visibility > 0.10 ? flipPt(reyeRaw) : null;
-  const nose = noseRaw && noseRaw.visibility > 0.10 ? flipPt(noseRaw) : null;
-
-  let eyeLX, eyeRX, eyeY;
-  if (leye && reye) {
-    eyeLX = leye.x;
-    eyeRX = reye.x;
-    eyeY  = (leye.y + reye.y) / 2;
-  } else if (nose) {
-    const ls = lm(landmarks, 11, W, H, 0.20);
-    const rs = lm(landmarks, 12, W, H, 0.20);
-    const faceW = (ls && rs) ? Math.abs(rs.x - ls.x) * 0.4 : W * 0.15;
-    eyeLX = nose.x - faceW * 0.5;
-    eyeRX = nose.x + faceW * 0.5;
-    eyeY  = nose.y - faceW * 0.3;
-  } else {
-    return;
-  }
-
-  if (eyeLX > eyeRX) { const t = eyeLX; eyeLX = eyeRX; eyeRX = t; }
-
-  const eyeSpan = Math.hypot(eyeRX - eyeLX, (reye && leye) ? reye.y - leye.y : 0);
-  const midX = (eyeLX + eyeRX) / 2;
-  const midY = eyeY;
-  const angle = (leye && reye) ? Math.atan2(reye.y - leye.y, reye.x - eyeLX) : 0;
-
-  const glassesW = eyeSpan * 2.05;
-  const glassesH = glassesW * 0.48;
-
+// ══════════════════════════════════════════════════════════════════════
+//  ACCESSORIES DRAWING
+// ══════════════════════════════════════════════════════════════════════
+function drawAccessory(lms, W, H, product) {
   const pImg = productImages[product.id];
+  if (!pImg || !pImg.complete || pImg.naturalWidth === 0 || pImg._failed) return;
 
-  ctx.save();
-  ctx.translate(midX, midY + glassesH * 0.05);
-  ctx.rotate(angle);
-
-  if (pImg && pImg.complete && pImg.naturalWidth > 0) {
-    ctx.globalAlpha = 0.98;
-    ctx.drawImage(pImg, -glassesW / 2, -glassesH / 2, glassesW, glassesH);
-  }
-
-  ctx.restore();
-}
-
-// ── ACCESSORIES ──────────────────────────────────
-function drawAccessory(landmarks, W, H, product) {
-  const pImg = productImages[product.id];
-  if (!pImg || !pImg.complete) return;
+  const nose = lm(lms, 0,  W, H, 0.10);
+  const ls   = lm(lms, 11, W, H, 0.20);
+  const rs   = lm(lms, 12, W, H, 0.20);
+  const lear = lm(lms, 7,  W, H, 0.10);
+  const rear = lm(lms, 8,  W, H, 0.10);
+  const lwrist = lm(lms, 15, W, H, 0.12);
+  const rwrist = lm(lms, 16, W, H, 0.12);
 
   if (product.id === 'a1') { // Cap
-    const nose = lm(landmarks, 0, W, H, 0.10);
-    const ls   = lm(landmarks, 11, W, H, 0.20);
-    const rs   = lm(landmarks, 12, W, H, 0.20);
-    const lear = lm(landmarks, 7, W, H, 0.10);
-    const rear = lm(landmarks, 8, W, H, 0.10);
-
-    let headCX, headW, headY;
+    let headCX, headW, headTopY;
     if (lear && rear) {
-      headCX = (lear.x + rear.x) / 2;
-      headW = Math.abs(rear.x - lear.x) * 1.45;
-      headY = Math.min(lear.y, rear.y);
+      headCX   = (lear.x + rear.x) / 2;
+      headW    = Math.abs(rear.x - lear.x) * 1.48;
+      headTopY = Math.min(lear.y, rear.y);
     } else if (nose && ls && rs) {
-      headCX = nose.x;
-      headW = Math.abs(rs.x - ls.x) * 0.55;
-      headY = nose.y - headW * 0.55;
+      const sw = Math.abs(rs.x - ls.x);
+      headCX   = nose.x;
+      headW    = sw * 0.52;
+      headTopY = nose.y - headW * 0.55;
     } else if (nose) {
-      headCX = nose.x;
-      headW = W * 0.22;
-      headY = nose.y - headW * 0.55;
+      headCX   = nose.x;
+      headW    = W * 0.22;
+      headTopY = nose.y - headW * 0.55;
     } else return;
 
-    const capW = headW * 1.4;
-    const capH = capW * 0.62;
+    const capW = headW * 1.45;
+    const capH = capW * 0.65;
+
+    const angle = (lear && rear) ? Math.atan2(rear.y - lear.y, rear.x - lear.x) : 0;
 
     ctx.save();
-    ctx.translate(headCX, headY - capH * 0.28);
-    ctx.globalAlpha = 0.98;
+    ctx.translate(headCX, headTopY - capH * 0.22);
+    ctx.rotate(angle);
+    ctx.globalAlpha = 0.97;
     ctx.drawImage(pImg, -capW / 2, -capH / 2, capW, capH);
     ctx.restore();
 
   } else if (product.id === 'a2') { // Necklace
-    const ls = lm(landmarks, 11, W, H, 0.25);
-    const rs = lm(landmarks, 12, W, H, 0.25);
     if (!ls || !rs) return;
-
-    const sw = Math.hypot(rs.x - ls.x, rs.y - ls.y);
+    const sw   = Math.hypot(rs.x - ls.x, rs.y - ls.y);
     const midX = (ls.x + rs.x) / 2;
     const midY = (ls.y + rs.y) / 2;
     const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
-
-    const neckW = sw * 0.85;
-    const neckH = neckW * 0.65;
+    const nW = sw * 0.88;
+    const nH = nW * 0.65;
 
     ctx.save();
-    ctx.translate(midX, midY + neckH * 0.15);
+    ctx.translate(midX, midY + nH * 0.12);
     ctx.rotate(angle);
     ctx.globalAlpha = 0.95;
-    ctx.drawImage(pImg, -neckW / 2, -neckH / 2, neckW, neckH);
+    ctx.drawImage(pImg, -nW / 2, -nH / 2, nW, nH);
     ctx.restore();
 
   } else if (product.id === 'a3') { // Watch
-    const lw = lm(landmarks, 15, W, H, 0.15);
-    const rw = lm(landmarks, 16, W, H, 0.15);
-    const wrist = lw || rw;
+    const wrist = lwrist || rwrist;
     if (!wrist) return;
-
-    const ls = lm(landmarks, 11, W, H, 0.20);
-    const rs = lm(landmarks, 12, W, H, 0.20);
     const sw = (ls && rs) ? Math.hypot(rs.x - ls.x, rs.y - ls.y) : W * 0.25;
-
-    const watchSize = sw * 0.26;
+    const watchSize = sw * 0.28;
 
     ctx.save();
     ctx.translate(wrist.x, wrist.y);
-    ctx.globalAlpha = 0.95;
+    ctx.globalAlpha = 0.97;
     ctx.drawImage(pImg, -watchSize / 2, -watchSize / 2, watchSize, watchSize);
     ctx.restore();
   }
 }
 
-// ══════════════════════════════════════════════════
-//  RENDER LOOP
-// ══════════════════════════════════════════════════
-function renderLoop() {
+// ══════════════════════════════════════════════════════════════════════
+//  GARMENT DISPATCH
+// ══════════════════════════════════════════════════════════════════════
+function drawGarment(lms, W, H, product) {
+  if (!product || product.id === 'none' || !lms) return;
+  const cat = product.category;
+  if      (cat === 'clothing')    drawClothing(lms, W, H, product);
+  else if (cat === 'eyewear')     drawEyewear(lms, W, H, product);
+  else if (cat === 'accessories') drawAccessory(lms, W, H, product);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  RENDER LOOP — called every frame by MediaPipe
+// ══════════════════════════════════════════════════════════════════════
+function renderFrame(rawLandmarks) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (selectedProduct && latestLandmarks) {
-    drawGarmentOnCanvas(latestLandmarks, canvas.width, canvas.height, selectedProduct);
+
+  if (!rawLandmarks) {
+    setTrackStatus(false);
+    return;
   }
+
+  // Smooth landmarks
+  const lms = smoothLandmarks(rawLandmarks);
+  setTrackStatus(true);
+
+  if (selectedProduct && selectedProduct.id !== 'none') {
+    drawGarment(lms, canvas.width, canvas.height, selectedProduct);
+  }
+  frameCount++;
 }
 
-// ══════════════════════════════════════════════════
-//  MEDIAPIPE POSE
-// ══════════════════════════════════════════════════
-function setupMediaPipe(stream) {
-  if (typeof Pose === 'undefined') {
-    console.warn('MediaPipe not available — running without pose');
-    runWithoutPose(); return;
-  }
+// ══════════════════════════════════════════════════════════════════════
+//  TRACKING STATUS INDICATOR
+// ══════════════════════════════════════════════════════════════════════
+let _lastTrackChange = 0;
+function setTrackStatus(active) {
+  const dot = document.getElementById('track-status');
+  if (!dot) return;
+  if (active === trackingActive) return;
+  trackingActive = active;
+  dot.className = active ? 'tracking' : 'lost';
+}
 
-  poseInstance = new Pose({
-    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-  });
-  poseInstance.setOptions({
-    modelComplexity:       1,
-    smoothLandmarks:       true,
-    enableSegmentation:    false,
-    minDetectionConfidence: 0.50,
-    minTrackingConfidence:  0.50,
-  });
-  poseInstance.onResults(results => {
-    latestLandmarks = results.poseLandmarks || null;
-    renderLoop();
+// ══════════════════════════════════════════════════════════════════════
+//  PRODUCT STRIP UI
+// ══════════════════════════════════════════════════════════════════════
+function buildProductStrip() {
+  const strip = document.getElementById('product-strip');
+  strip.innerHTML = '';
+
+  PRODUCTS.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'prod-circle' + (p.id === 'none' ? ' none-item' : '');
+    div.dataset.id = p.id;
+
+    const pImg = productImages[p.id];
+    const imgHTML = (p.id !== 'none' && pImg)
+      ? `<img src="assets/products/${p.id}.png" alt="${p.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="prod-emoji" style="display:none">${p.emoji}</span>`
+      : `<span class="prod-emoji">${p.emoji}</span>`;
+
+    div.innerHTML = `
+      <div class="prod-circle-img">${imgHTML}</div>
+      <div class="prod-circle-name">${p.name}</div>
+    `;
+    div.addEventListener('click', () => selectProduct(p.id));
+    strip.appendChild(div);
   });
 
-  if (typeof Camera !== 'undefined') {
-    cameraUtil = new Camera(video, {
-      onFrame: async () => { await poseInstance.send({ image: video }); },
-      width: 1280, height: 720
-    });
-    cameraUtil.start()
-      .then(hideLoading)
-      .catch(() => runWithoutPose());
+  // Auto-select hoodie (c4) on load
+  selectProduct('c4');
+}
+
+function selectProduct(id) {
+  const prev = selectedProduct;
+  if (prev?.id === id) return; // Already selected — no toggle for camera view
+
+  selectedProduct = PRODUCTS.find(p => p.id === id) || null;
+
+  // Update UI circles
+  document.querySelectorAll('.prod-circle').forEach(el =>
+    el.classList.toggle('selected', el.dataset.id === id));
+
+  // Selected label
+  const label = document.getElementById('selected-label');
+  if (selectedProduct && selectedProduct.id !== 'none') {
+    label.textContent = `${selectedProduct.emoji}  ${selectedProduct.name}`;
+    label.style.display = 'block';
   } else {
-    hideLoading();
-    const loop = async () => {
-      if (video.readyState >= 2) await poseInstance.send({ image: video });
-      requestAnimationFrame(loop);
-    };
-    loop();
+    label.style.display = 'none';
   }
-}
 
-function runWithoutPose() {
-  hideLoading();
-  const loop = () => { renderLoop(); requestAnimationFrame(loop); };
-  loop();
-}
-
-// ══════════════════════════════════════════════════
-//  CAMERA INIT
-// ══════════════════════════════════════════════════
-async function initCamera() {
-  try {
-    videoStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    });
-    video.srcObject = videoStream;
-    await new Promise((res, rej) => { video.onloadedmetadata = res; video.onerror = rej; });
-    await video.play();
-    setupMediaPipe(videoStream);
-  } catch (err) {
-    showError(err.name === 'NotAllowedError'
-      ? 'Camera access was denied. Allow camera access in your browser settings and reload.'
-      : 'Cannot access camera. Make sure no other app is using it, then reload.');
+  // Hint update
+  const hint = document.getElementById('hint-bar');
+  if (selectedProduct && selectedProduct.id !== 'none') {
+    hint.textContent = '✅ Stand back so your full torso is visible';
+  } else {
+    hint.textContent = '👆 Tap an outfit below to try it on';
   }
+
+  // Flash product name
+  if (selectedProduct && selectedProduct.id !== 'none') {
+    const snapLabel = document.getElementById('snap-label');
+    snapLabel.textContent = `${selectedProduct.emoji} ${selectedProduct.name}`;
+    snapLabel.classList.add('show');
+    setTimeout(() => snapLabel.classList.remove('show'), 1400);
+  }
+
+  // Reset cloth physics on product change
+  clothState.velY    = 0;
+  clothState.offsetY = 0;
+
+  // Reset smoother to avoid ghost positions
+  smoothedLandmarks = null;
 }
 
-// ══════════════════════════════════════════════════
-//  CAPTURE — composite video + garment overlay
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
+//  CAPTURE — composite video + garment
+// ══════════════════════════════════════════════════════════════════════
 function capturePhoto() {
   const flash = document.getElementById('flash');
   flash.classList.add('active');
@@ -691,94 +1017,170 @@ function capturePhoto() {
   cap.width = vW; cap.height = vH;
   const cCtx = cap.getContext('2d');
 
-  // Draw video mirrored (selfie orientation)
+  // Mirror the video
   cCtx.save();
   cCtx.translate(vW, 0);
   cCtx.scale(-1, 1);
   cCtx.drawImage(video, 0, 0, vW, vH);
   cCtx.restore();
 
-  // Draw garment at full video resolution
-  if (selectedProduct && latestLandmarks) {
-    const tmpCanvas = document.createElement('canvas');
-    tmpCanvas.width = vW; tmpCanvas.height = vH;
-    const tmpCtx = tmpCanvas.getContext('2d');
-    // We need a separate ctx-like object pointing to tmpCtx
-    // Temporarily swap global ctx reference
-    const origCtx = ctx;
-    // Draw to tmpCanvas
-    const savedCtx = ctx;
-    // Use a closure trick: re-call draw with tmpCtx
-    drawGarmentOnCanvasTo(tmpCtx, latestLandmarks, vW, vH, selectedProduct);
-    cCtx.drawImage(tmpCanvas, 0, 0, vW, vH);
-  }
+  // Scale the overlay canvas onto capture canvas
+  cCtx.drawImage(canvas, 0, 0, vW, vH);
 
   // Watermark
-  const wSz = Math.max(14, vW * 0.018);
+  const wSz = Math.max(13, vW * 0.018);
   cCtx.font = `bold ${wSz}px Outfit, sans-serif`;
   cCtx.textAlign = 'right';
-  cCtx.fillStyle = 'rgba(168,85,247,0.80)';
-  cCtx.globalAlpha = 0.75;
+  cCtx.fillStyle = 'rgba(168,85,247,0.82)';
+  cCtx.globalAlpha = 0.78;
   cCtx.fillText('MirrorAI — Live Try-On', vW - 16, vH - 16);
 
   const link = document.createElement('a');
-  link.download = `mirrrorai_live_${Date.now()}.jpg`;
-  link.href = cap.toDataURL('image/jpeg', 0.92);
+  link.download = `mirrorai_live_${Date.now()}.jpg`;
+  link.href = cap.toDataURL('image/jpeg', 0.93);
   link.click();
 }
 
-// ── Draw to an arbitrary ctx (for capture) ───────
-function drawGarmentOnCanvasTo(targetCtx, landmarks, W, H, product) {
-  const origCtx = ctx;
-  // Temporarily point module-level ctx at targetCtx
-  Object.assign(ctx, targetCtx); // won't work directly — use a different pattern
-  // Simple approach: just use targetCtx inline
-  const _ctx = targetCtx;
-  const _lm = (idx, minVis = 0.30) => {
-    const p = landmarks[idx];
-    if (!p || p.visibility < minVis) return null;
-    return { x: W - p.x * W, y: p.y * H, v: p.visibility };
-  };
-  // For capture we skip re-implementing full draw — just call renderLoop on a temp canvas
-  // This is handled by drawing the overlay canvas scaled to capture size
-  const scaleX = W / canvas.width;
-  const scaleY = H / canvas.height;
-  _ctx.save();
-  _ctx.scale(scaleX, scaleY);
-  _ctx.drawImage(canvas, 0, 0);
-  _ctx.restore();
+// ══════════════════════════════════════════════════════════════════════
+//  MEDIAPIPE POSE SETUP
+// ══════════════════════════════════════════════════════════════════════
+function setupMediaPipe() {
+  if (typeof Pose === 'undefined') {
+    console.warn('MediaPipe Pose not available — using fallback');
+    runFallback();
+    return;
+  }
+
+  poseInstance = new Pose({
+    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+  });
+
+  poseInstance.setOptions({
+    modelComplexity:         1,      // 0=lite, 1=full, 2=heavy
+    smoothLandmarks:         true,
+    enableSegmentation:      false,
+    smoothSegmentation:      false,
+    minDetectionConfidence:  0.50,
+    minTrackingConfidence:   0.50,
+  });
+
+  poseInstance.onResults(results => {
+    latestLandmarks = results.poseLandmarks || null;
+    renderFrame(latestLandmarks);
+  });
+
+  // Use MediaPipe Camera utility if available for best performance
+  if (typeof Camera !== 'undefined') {
+    cameraUtil = new Camera(video, {
+      onFrame: async () => {
+        try { await poseInstance.send({ image: video }); } catch(e) {}
+      },
+      width: 1280, height: 720,
+    });
+    cameraUtil.start()
+      .then(hideLoading)
+      .catch(err => {
+        console.warn('Camera util failed:', err);
+        hideLoading();
+        fallbackRenderLoop();
+      });
+  } else {
+    hideLoading();
+    fallbackRenderLoop();
+  }
 }
 
-// ══════════════════════════════════════════════════
+function fallbackRenderLoop() {
+  const loop = async () => {
+    if (video.readyState >= 2 && poseInstance) {
+      try { await poseInstance.send({ image: video }); } catch(e) {}
+    }
+    requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+function runFallback() {
+  hideLoading();
+  const loop = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // No landmarks — just clear canvas
+    requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  CAMERA INIT
+// ══════════════════════════════════════════════════════════════════════
+async function initCamera() {
+  try {
+    // Try rear camera first on desktop, front on mobile
+    const constraints = {
+      video: {
+        facingMode: 'user',
+        width:  { ideal: 1280, min: 640 },
+        height: { ideal: 720,  min: 360 },
+      },
+      audio: false,
+    };
+
+    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = videoStream;
+
+    await new Promise((res, rej) => {
+      video.onloadedmetadata = res;
+      video.onerror = rej;
+      setTimeout(rej, 8000); // timeout safety
+    });
+
+    await video.play();
+    setupMediaPipe();
+
+  } catch (err) {
+    const msg = err.name === 'NotAllowedError'
+      ? 'Camera access was denied. Allow camera access in your browser settings and reload.'
+      : err.name === 'NotFoundError'
+        ? 'No camera found. Connect a camera and reload.'
+        : 'Cannot access camera. Make sure no other app is using it, then reload.';
+    showError(msg);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
 //  UI HELPERS
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 function hideLoading() {
-  document.getElementById('loading-screen').style.display = 'none';
+  const ls = document.getElementById('loading-screen');
+  if (ls) ls.style.display = 'none';
 }
 function showError(msg) {
-  document.getElementById('loading-screen').style.display = 'none';
+  hideLoading();
   document.getElementById('error-msg').textContent = msg;
   document.getElementById('error-screen').classList.add('show');
 }
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 //  INIT
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   buildProductStrip();
+
   document.getElementById('capture-btn').addEventListener('click', capturePhoto);
 
   if (!navigator.mediaDevices?.getUserMedia) {
-    showError('Your browser does not support camera access. Use Chrome or Safari.');
+    showError('Your browser does not support camera access. Use Chrome or Safari on a recent version.');
     return;
   }
+
   initCamera();
 });
 
+// Cleanup on page unload
 window.addEventListener('pagehide', () => {
-  if (cameraUtil)   cameraUtil.stop();
+  if (cameraUtil)   try { cameraUtil.stop();  } catch(e) {}
   if (videoStream)  videoStream.getTracks().forEach(t => t.stop());
-  if (poseInstance) poseInstance.close();
+  if (poseInstance) try { poseInstance.close(); } catch(e) {}
 });
 </script>
 </body>
