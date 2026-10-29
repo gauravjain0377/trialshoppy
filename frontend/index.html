@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MirrorAI — AI-Powered Virtual Try-On</title>
+  <meta name="description" content="MirrorAI lets you virtually try on clothing, eyewear, and accessories using cutting-edge AI and computer vision. See how fashion looks on YOU before you buy." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+
+  <!-- Animated background orbs -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+  </div>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M14 2C7.373 2 2 7.373 2 14s5.373 12 12 12 12-5.373 12-12S20.627 2 14 2z" fill="url(#logoGrad)"/>
+            <path d="M9 14a5 5 0 0 1 10 0" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="14" cy="14" r="2.5" fill="white"/>
+            <defs>
+              <linearGradient id="logoGrad" x1="2" y1="2" x2="26" y2="26" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#a855f7"/>
+                <stop offset="1" stop-color="#6366f1"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="logo-text">Mirror<span class="logo-accent">AI</span></span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link active">Home</a></li>
+        <li><a href="catalog.html" class="nav-link">Catalog</a></li>
+        <li><a href="tryon.html" class="nav-link">Try On</a></li>
+        <li><a href="about.html" class="nav-link">About</a></li>
+      </ul>
+      <a href="tryon.html" class="btn-cta" id="nav-cta">
+        <span>Try It Free</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" id="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        <span>AI-Powered Computer Vision</span>
+      </div>
+      <h1 class="hero-title">
+        Try Before<br />
+        <span class="gradient-text">You Buy.</span><br />
+        <span class="hero-subtitle-inline">Virtually.</span>
+      </h1>
+      <p class="hero-description">
+        Upload your photo and instantly see how any outfit, pair of glasses, or accessory looks on <em>you</em> — powered by advanced AI and real-time computer vision.
+      </p>
+      <div class="hero-actions">
+        <a href="tryon.html" class="btn-primary" id="hero-tryon-btn">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Start Try-On
+        </a>
+        <a href="catalog.html" class="btn-secondary" id="hero-catalog-btn">
+          Browse Catalog
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <span class="stat-number">10+</span>
+          <span class="stat-label">Products</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-number">3</span>
+          <span class="stat-label">Categories</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-number">AI</span>
+          <span class="stat-label">Powered</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="phone-mockup">
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="screen-header">
+              <div class="screen-logo">MirrorAI</div>
+              <div class="screen-status">● Live</div>
+            </div>
+            <div class="screen-content">
+              <div class="avatar-container">
+                <div class="avatar-silhouette">
+                  <svg viewBox="0 0 120 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="60" cy="40" r="28" fill="rgba(168,85,247,0.3)" stroke="rgba(168,85,247,0.6)" stroke-width="1.5"/>
+                    <path d="M20 200 C20 140 100 140 100 200" fill="rgba(168,85,247,0.2)" stroke="rgba(168,85,247,0.5)" stroke-width="1.5"/>
+                    <path d="M35 80 L20 130 L45 125 L60 160 L75 125 L100 130 L85 80" fill="rgba(99,102,241,0.4)" stroke="rgba(99,102,241,0.7)" stroke-width="1.5"/>
+                  </svg>
+                </div>
+                <div class="scan-line"></div>
+                <div class="ai-points">
+                  <div class="ai-point" style="top:20%;left:45%"></div>
+                  <div class="ai-point" style="top:35%;left:30%"></div>
+                  <div class="ai-point" style="top:35%;left:65%"></div>
+                  <div class="ai-point" style="top:55%;left:40%"></div>
+                  <div class="ai-point" style="top:55%;left:55%"></div>
+                  <div class="ai-point" style="top:70%;left:35%"></div>
+                  <div class="ai-point" style="top:70%;left:60%"></div>
+                </div>
+              </div>
+              <div class="screen-tags">
+                <div class="tag tag-1">👗 Outfit Detected</div>
+                <div class="tag tag-2">✨ AI Processing</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-glow"></div>
+      </div>
+      <div class="floating-cards">
+        <div class="float-card card-clothing" id="fc1">
+          <span class="fc-emoji">👕</span>
+          <div>
+            <div class="fc-title">T-Shirt</div>
+            <div class="fc-sub">Fitted</div>
+          </div>
+        </div>
+        <div class="float-card card-eyewear" id="fc2">
+          <span class="fc-emoji">🕶️</span>
+          <div>
+            <div class="fc-title">Sunglasses</div>
+            <div class="fc-sub">Aviator</div>
+          </div>
+        </div>
+        <div class="float-card card-result" id="fc3">
+          <span class="fc-emoji">✅</span>
+          <div>
+            <div class="fc-title">Try-On Ready</div>
+            <div class="fc-sub">Looks great!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">Process</div>
+        <h2 class="section-title">How <span class="gradient-text">MirrorAI</span> Works</h2>
+        <p class="section-desc">Three simple steps powered by cutting-edge computer vision and AI</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step-card" data-step="1">
+          <div class="step-number">01</div>
+          <div class="step-icon">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <path d="M16 4C9.373 4 4 9.373 4 16s5.373 12 12 12 12-5.373 12-12S22.627 4 16 4z" stroke="url(#g1)" stroke-width="1.5"/>
+              <circle cx="16" cy="13" r="4" stroke="url(#g1)" stroke-width="1.5"/>
+              <path d="M8 24c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="url(#g1)" stroke-width="1.5" stroke-linecap="round"/>
+              <defs><linearGradient id="g1" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+            </svg>
+          </div>
+          <h3 class="step-title">Upload Your Photo</h3>
+          <p class="step-desc">Upload a clear, front-facing photo. Our AI instantly detects your pose, body landmarks, and facial features.</p>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-card" data-step="2">
+          <div class="step-number">02</div>
+          <div class="step-icon">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <rect x="4" y="8" width="24" height="16" rx="2" stroke="url(#g2)" stroke-width="1.5"/>
+              <path d="M12 12h8M12 16h5" stroke="url(#g2)" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="24" cy="8" r="4" fill="url(#g2)"/>
+              <defs><linearGradient id="g2" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+            </svg>
+          </div>
+          <h3 class="step-title">Pick a Product</h3>
+          <p class="step-desc">Browse our catalog of clothing, eyewear, and accessories. Select any item you want to try on.</p>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-card" data-step="3">
+          <div class="step-number">03</div>
+          <div class="step-icon">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <path d="M4 16 L12 24 L28 8" stroke="url(#g3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <defs><linearGradient id="g3" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+            </svg>
+          </div>
+          <h3 class="step-title">See Your Look</h3>
+          <p class="step-desc">Watch AI instantly render the product on your image with realistic perspective, lighting, and fit. Download and share!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">Capabilities</div>
+        <h2 class="section-title">Built with <span class="gradient-text">Real AI</span></h2>
+        <p class="section-desc">Every feature powered by open-source AI models running locally — no cloud dependency</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card feature-large">
+          <div class="feature-icon-bg">
+            <span class="feature-emoji">🦾</span>
+          </div>
+          <h3>Pose Detection</h3>
+          <p>MediaPipe Pose estimates 33 body landmarks to accurately position clothing overlays on any body shape and posture.</p>
+          <div class="feature-tag">MediaPipe</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-bg">
+            <span class="feature-emoji">👁️</span>
+          </div>
+          <h3>Face Mesh</h3>
+          <p>468-point face landmark detection for pixel-perfect eyewear placement.</p>
+          <div class="feature-tag">MediaPipe</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-bg">
+            <span class="feature-emoji">✂️</span>
+          </div>
+          <h3>Background Removal</h3>
+          <p>Automatic product background removal using rembg for seamless overlays.</p>
+          <div class="feature-tag">rembg + U2Net</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-bg">
+            <span class="feature-emoji">🎨</span>
+          </div>
+          <h3>Image Compositing</h3>
+          <p>OpenCV-powered perspective warping and alpha blending for natural-looking results.</p>
+          <div class="feature-tag">OpenCV</div>
+        </div>
+        <div class="feature-card feature-large feature-right">
+          <div class="feature-icon-bg">
+            <span class="feature-emoji">⚡</span>
+          </div>
+          <h3>Fast Processing</h3>
+          <p>FastAPI backend delivers results in seconds. All AI runs locally — completely free, no API costs, no data shared.</p>
+          <div class="feature-tag">FastAPI + Python</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section" id="cta">
+    <div class="section-container">
+      <div class="cta-card">
+        <div class="cta-glow"></div>
+        <div class="cta-content">
+          <h2>Ready to see yourself<br /><span class="gradient-text">in a new light?</span></h2>
+          <p>No sign-up required. Upload your photo and try on anything in seconds.</p>
+          <div class="cta-actions">
+            <a href="tryon.html" class="btn-primary btn-large" id="cta-btn">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2L18 10L10 18M2 10h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Launch Try-On
+            </a>
+            <a href="catalog.html" class="btn-ghost" id="cta-catalog-btn">View Products →</a>
+          </div>
+        </div>
+        <div class="cta-visual">
+          <div class="cta-circle cta-circle-1"></div>
+          <div class="cta-circle cta-circle-2"></div>
+          <div class="cta-circle cta-circle-3"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <a href="index.html" class="nav-logo">
+          <div class="logo-icon">
+            <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+              <path d="M14 2C7.373 2 2 7.373 2 14s5.373 12 12 12 12-5.373 12-12S20.627 2 14 2z" fill="url(#logoGrad2)"/>
+              <path d="M9 14a5 5 0 0 1 10 0" stroke="white" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="14" cy="14" r="2.5" fill="white"/>
+              <defs>
+                <linearGradient id="logoGrad2" x1="2" y1="2" x2="26" y2="26" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#a855f7"/>
+                  <stop offset="1" stop-color="#6366f1"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="logo-text">Mirror<span class="logo-accent">AI</span></span>
+        </a>
+        <p class="footer-tagline">AI-Powered Virtual Try-On Platform</p>
+        <p class="footer-tech">Built with MediaPipe · OpenCV · FastAPI · rembg</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h4>Product</h4>
+          <a href="catalog.html">Catalog</a>
+          <a href="tryon.html">Try On</a>
+          <a href="about.html">About</a>
+        </div>
+        <div class="footer-col">
+          <h4>Tech Stack</h4>
+          <a href="#">MediaPipe</a>
+          <a href="#">FastAPI</a>
+          <a href="#">OpenCV</a>
+          <a href="#">Python</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2024 MirrorAI · Built for TrialShoppy Technical Assessment · All AI runs locally</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

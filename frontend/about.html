@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — MirrorAI Virtual Try-On</title>
+  <meta name="description" content="Learn about MirrorAI's technology stack, AI models used, architecture, and the team behind the virtual try-on platform." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    .about-hero { padding: 140px 24px 60px; text-align: center; position: relative; z-index: 1; }
+    .about-container { max-width: 900px; margin: 0 auto; padding: 0 24px 80px; position: relative; z-index: 1; }
+
+    /* Architecture */
+    .arch-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 40px;
+      margin-bottom: 32px;
+    }
+    .arch-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+    .arch-emoji { font-size: 1.6rem; }
+
+    .arch-flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .arch-node {
+      text-align: center;
+      padding: 16px 8px;
+      background: rgba(168,85,247,0.08);
+      border: 1px solid var(--border-purple);
+      border-radius: var(--radius-md);
+      transition: var(--transition-smooth);
+    }
+
+    .arch-node:hover { transform: translateY(-3px); box-shadow: var(--shadow-purple); }
+
+    .arch-node-icon { font-size: 1.5rem; display: block; margin-bottom: 6px; }
+    .arch-node-title { font-size: 0.72rem; font-weight: 700; color: var(--text-primary); }
+    .arch-node-sub { font-size: 0.62rem; color: var(--text-muted); margin-top: 3px; }
+
+    .arch-arrow {
+      text-align: center;
+      color: var(--purple-500);
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    /* Tech Stack */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .tech-card {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      transition: var(--transition-smooth);
+    }
+    .tech-card:hover { border-color: var(--border-purple); transform: translateY(-2px); }
+    .tech-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .tech-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .tech-desc { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; }
+    .tech-badge { display: inline-block; margin-top: 6px; padding: 2px 8px; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2); border-radius: var(--radius-full); font-size: 0.65rem; font-weight: 600; color: var(--violet-400); }
+
+    /* AI Pipeline */
+    .pipeline {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 40px;
+      margin-bottom: 32px;
+    }
+
+    .pipeline-step {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .pipeline-step:last-child { border-bottom: none; }
+
+    .pipeline-num {
+      width: 32px; height: 32px;
+      background: var(--gradient-main);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700; color: white;
+      flex-shrink: 0;
+    }
+
+    .pipeline-content h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .pipeline-content p { font-size: 0.83rem; color: var(--text-secondary); line-height: 1.5; }
+    .pipeline-tech { display: inline-block; margin-top: 6px; padding: 2px 10px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25); border-radius: var(--radius-full); font-size: 0.67rem; font-weight: 700; color: #818cf8; }
+
+    /* Limitations */
+    .limitations { background: rgba(168,85,247,0.04); border: 1px solid var(--border-purple); border-radius: var(--radius-lg); padding: 28px; margin-bottom: 32px; }
+    .limitations h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 14px; }
+    .limitations ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .limitations li { font-size: 0.87rem; color: var(--text-secondary); display: flex; gap: 10px; align-items: flex-start; }
+    .limitations li::before { content: '⚠️'; font-size: 0.9rem; flex-shrink: 0; }
+
+    /* Future */
+    .future-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .future-card { padding: 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); text-align: center; }
+    .future-icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .future-title { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+    .future-desc { font-size: 0.72rem; color: var(--text-muted); }
+
+    @media (max-width: 768px) {
+      .arch-flow { grid-template-columns: 1fr; }
+      .arch-arrow { transform: rotate(90deg); font-size: 1rem; }
+      .tech-grid { grid-template-columns: 1fr; }
+      .future-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-orbs"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M14 2C7.373 2 2 7.373 2 14s5.373 12 12 12 12-5.373 12-12S20.627 2 14 2z" fill="url(#lg)"/>
+            <path d="M9 14a5 5 0 0 1 10 0" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="14" cy="14" r="2.5" fill="white"/>
+            <defs><linearGradient id="lg" x1="2" y1="2" x2="26" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+          </svg>
+        </div>
+        <span class="logo-text">Mirror<span class="logo-accent">AI</span></span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="catalog.html" class="nav-link">Catalog</a></li>
+        <li><a href="tryon.html" class="nav-link">Try On</a></li>
+        <li><a href="about.html" class="nav-link active">About</a></li>
+      </ul>
+      <a href="tryon.html" class="btn-cta"><span>Try It Free</span></a>
+      <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+    </div>
+  </nav>
+
+  <section class="about-hero">
+    <div class="section-tag">Technical Overview</div>
+    <h1 class="section-title">About <span class="gradient-text">MirrorAI</span></h1>
+    <p class="section-desc" style="max-width:560px;margin:0 auto">An AI-powered virtual try-on platform built for the TrialShoppy Technical Assessment. Uses real computer vision models — no paid APIs required.</p>
+  </section>
+
+  <div class="about-container">
+
+    <!-- Architecture -->
+    <div class="arch-card">
+      <div class="arch-title"><span class="arch-emoji">🏗️</span> System Architecture</div>
+      <div class="arch-flow">
+        <div class="arch-node">
+          <span class="arch-node-icon">📸</span>
+          <div class="arch-node-title">User Photo</div>
+          <div class="arch-node-sub">JPG/PNG/WEBP</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <span class="arch-node-icon">🦾</span>
+          <div class="arch-node-title">MediaPipe</div>
+          <div class="arch-node-sub">Pose/Face Mesh</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <span class="arch-node-icon">✂️</span>
+          <div class="arch-node-title">rembg</div>
+          <div class="arch-node-sub">BG Removal</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <span class="arch-node-icon">🎨</span>
+          <div class="arch-node-title">OpenCV</div>
+          <div class="arch-node-sub">Warp + Blend</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <span class="arch-node-icon">✨</span>
+          <div class="arch-node-title">Result</div>
+          <div class="arch-node-sub">PNG Output</div>
+        </div>
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-secondary)">All processing happens on the local FastAPI backend. No data is sent to external servers. The frontend communicates with the Python backend via a REST API at <code style="background:rgba(168,85,247,0.1);padding:2px 6px;border-radius:4px;color:#a855f7">localhost:8000</code>.</p>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="section-tag" style="margin-bottom:20px">Technology Stack</div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <span class="tech-icon">🦾</span>
+        <div>
+          <div class="tech-name">MediaPipe</div>
+          <div class="tech-desc">Google's ML framework used for real-time pose detection (33 body landmarks) and face mesh (468 landmarks) for accurate clothing and eyewear placement.</div>
+          <span class="tech-badge">Free · Local · Google</span>
+        </div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">✂️</span>
+        <div>
+          <div class="tech-name">rembg + U2Net</div>
+          <div class="tech-desc">Automatic background removal from product images using the U2Net deep learning model. Produces clean product cutouts for seamless overlay.</div>
+          <span class="tech-badge">Free · Local · Open Source</span>
+        </div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">📷</span>
+        <div>
+          <div class="tech-name">OpenCV</div>
+          <div class="tech-desc">Used for perspective warping, affine transforms, alpha channel blending, and image compositing to create realistic try-on results.</div>
+          <span class="tech-badge">Free · Local · Python</span>
+        </div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">⚡</span>
+        <div>
+          <div class="tech-name">FastAPI</div>
+          <div class="tech-desc">High-performance Python web framework serving the try-on REST API. Handles image upload, processing pipeline orchestration, and result delivery.</div>
+          <span class="tech-badge">Free · Python · Async</span>
+        </div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">🎨</span>
+        <div>
+          <div class="tech-name">Pillow (PIL)</div>
+          <div class="tech-desc">Python Imaging Library used for image manipulation, resizing, format conversion, and final output compositing alongside OpenCV.</div>
+          <span class="tech-badge">Free · Python</span>
+        </div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">🌐</span>
+        <div>
+          <div class="tech-name">Vanilla HTML/CSS/JS</div>
+          <div class="tech-desc">Pure frontend with no framework dependencies. Premium glassmorphism dark UI with Google Fonts, CSS animations, and JavaScript interactions.</div>
+          <span class="tech-badge">No Framework · Pure Web</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Pipeline -->
+    <div class="pipeline">
+      <div class="arch-title" style="margin-bottom:20px"><span class="arch-emoji">🤖</span> AI Processing Pipeline</div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">1</div>
+        <div class="pipeline-content">
+          <h4>Image Validation & Preprocessing</h4>
+          <p>Uploaded photo is validated (format, size), resized to a standard resolution, and normalized for landmark detection.</p>
+          <span class="pipeline-tech">Pillow · OpenCV</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">2</div>
+        <div class="pipeline-content">
+          <h4>Body/Face Landmark Detection</h4>
+          <p>For clothing: MediaPipe Pose detects 33 body landmarks (shoulders, hips, wrists). For eyewear: MediaPipe Face Mesh detects 468 face points to locate eye positions precisely.</p>
+          <span class="pipeline-tech">MediaPipe Pose · MediaPipe Face Mesh</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">3</div>
+        <div class="pipeline-content">
+          <h4>Product Background Removal</h4>
+          <p>The product image has its background automatically removed using rembg's U2Net model, producing a clean RGBA cutout with transparent background.</p>
+          <span class="pipeline-tech">rembg · U2Net Deep Learning Model</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">4</div>
+        <div class="pipeline-content">
+          <h4>Perspective Transform & Warping</h4>
+          <p>Using the detected landmarks, OpenCV applies perspective warping to fit the product to the body's shape, angle, and scale.</p>
+          <span class="pipeline-tech">OpenCV · getPerspectiveTransform · warpPerspective</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">5</div>
+        <div class="pipeline-content">
+          <h4>Alpha Blending & Compositing</h4>
+          <p>The warped product is composited onto the user's photo using alpha blending, preserving natural lighting and creating a realistic overlay.</p>
+          <span class="pipeline-tech">OpenCV · PIL · Alpha Compositing</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Limitations -->
+    <div class="limitations">
+      <h3>⚠️ Known Limitations</h3>
+      <ul>
+        <li>Best results with front-facing, well-lit photos. Side angles reduce landmark detection accuracy.</li>
+        <li>Clothing overlay works best for upper-body garments. Full-body outfits require additional model tuning.</li>
+        <li>The try-on is a realistic overlay simulation — not photorealistic diffusion-based generation (which requires GPU).</li>
+        <li>Product images are emoji/flat representations in demo mode. Real product images improve results significantly.</li>
+        <li>Processing speed depends on host machine's CPU. GPU acceleration would dramatically improve speed.</li>
+      </ul>
+    </div>
+
+    <!-- Future Improvements -->
+    <div class="section-tag" style="margin-bottom:20px">Possible Future Improvements</div>
+    <div class="future-grid">
+      <div class="future-card">
+        <div class="future-icon">🔮</div>
+        <div class="future-title">Diffusion-Based Try-On</div>
+        <div class="future-desc">Integrate IDM-VTON or OOTDiffusion for photorealistic clothing generation</div>
+      </div>
+      <div class="future-card">
+        <div class="future-icon">📱</div>
+        <div class="future-title">Live Webcam Mode</div>
+        <div class="future-desc">Real-time AR try-on using webcam feed with WebRTC</div>
+      </div>
+      <div class="future-card">
+        <div class="future-icon">🛒</div>
+        <div class="future-title">E-commerce Integration</div>
+        <div class="future-desc">Plugin/SDK for WooCommerce, Shopify, and custom stores</div>
+      </div>
+      <div class="future-card">
+        <div class="future-icon">📏</div>
+        <div class="future-title">Size Recommendation</div>
+        <div class="future-desc">Estimate body measurements from photo for size suggestions</div>
+      </div>
+      <div class="future-card">
+        <div class="future-icon">💾</div>
+        <div class="future-title">User Accounts</div>
+        <div class="future-desc">Save try-on history, create wishlists, compare looks</div>
+      </div>
+      <div class="future-card">
+        <div class="future-icon">🌍</div>
+        <div class="future-title">Multi-Language</div>
+        <div class="future-desc">Support for global markets with i18n and RTL layouts</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="footer">
+    <div class="footer-bottom">
+      <p>© 2024 MirrorAI · Built for TrialShoppy Technical Assessment · All AI runs locally · No paid APIs used</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

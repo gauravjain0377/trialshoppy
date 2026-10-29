@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Catalog — MirrorAI Virtual Try-On</title>
+  <meta name="description" content="Browse MirrorAI's catalog of clothing, eyewear, and accessories. Click any product to instantly try it on using AI." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/catalog.css" />
+</head>
+<body>
+
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M14 2C7.373 2 2 7.373 2 14s5.373 12 12 12 12-5.373 12-12S20.627 2 14 2z" fill="url(#logoGrad)"/>
+            <path d="M9 14a5 5 0 0 1 10 0" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="14" cy="14" r="2.5" fill="white"/>
+            <defs><linearGradient id="logoGrad" x1="2" y1="2" x2="26" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+          </svg>
+        </div>
+        <span class="logo-text">Mirror<span class="logo-accent">AI</span></span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="catalog.html" class="nav-link active">Catalog</a></li>
+        <li><a href="tryon.html" class="nav-link">Try On</a></li>
+        <li><a href="about.html" class="nav-link">About</a></li>
+      </ul>
+      <a href="tryon.html" class="btn-cta">
+        <span>Try It Free</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+    </div>
+  </nav>
+
+  <!-- Catalog Header -->
+  <section class="catalog-hero">
+    <div class="catalog-hero-inner">
+      <div class="section-tag">Browse Collection</div>
+      <h1 class="section-title">Virtual <span class="gradient-text">Try-On</span> Catalog</h1>
+      <p class="section-desc">Pick any item and see how it looks on you instantly — powered by AI</p>
+    </div>
+  </section>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar" id="filter-bar">
+    <div class="filter-inner">
+      <button class="filter-btn active" data-filter="all" id="filter-all">All Products</button>
+      <button class="filter-btn" data-filter="clothing" id="filter-clothing">👕 Clothing</button>
+      <button class="filter-btn" data-filter="eyewear" id="filter-eyewear">🕶️ Eyewear</button>
+      <button class="filter-btn" data-filter="accessories" id="filter-accessories">🎒 Accessories</button>
+      <div class="filter-search">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input type="text" id="search-input" placeholder="Search products..." />
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Grid -->
+  <main class="catalog-main">
+    <div class="catalog-container">
+      <div class="product-grid" id="product-grid">
+        <!-- Products injected by JS -->
+      </div>
+      <div class="no-results" id="no-results" style="display:none">
+        <span class="no-results-emoji">🔍</span>
+        <h3>No products found</h3>
+        <p>Try a different search or filter</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Product Modal -->
+  <div class="product-modal-overlay" id="product-modal" role="dialog" aria-modal="true" style="display:none">
+    <div class="product-modal">
+      <button class="modal-close" id="modal-close" aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <div class="modal-content">
+        <div class="modal-img-wrap">
+          <div class="modal-product-img" id="modal-img"></div>
+        </div>
+        <div class="modal-details">
+          <div class="modal-category" id="modal-category"></div>
+          <h2 class="modal-title" id="modal-title"></h2>
+          <p class="modal-desc" id="modal-desc"></p>
+          <div class="modal-tags" id="modal-tags"></div>
+          <div class="modal-actions">
+            <a href="tryon.html" class="btn-primary" id="modal-tryon-btn">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Try This On
+            </a>
+            <button class="btn-secondary" id="modal-close-btn">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-bottom">
+      <p>© 2024 MirrorAI · AI-Powered Virtual Try-On</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/catalog.js"></script>
+</body>
+</html>
