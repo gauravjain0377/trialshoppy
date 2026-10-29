@@ -1,7 +1,4 @@
 # 🪞 MirrorAI — Virtual Try-On Platform
-> **TrialShoppy Technical Assessment Submission**  
-> **Role:** Technical Development Intern (AI/ML, Generative AI, Computer Vision & AR/VR)  
-> **Submission Format:** Working Prototype + Complete Source Code + Technical Report  
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -139,4 +136,3 @@ Per the assessment instruction (*"Clearly mention any incomplete features, limit
 - REST API Reference: `http://localhost:8000/docs`
 
 ---
-*Developed for the TrialShoppy Technical Development Internship recruitment assessment.*
